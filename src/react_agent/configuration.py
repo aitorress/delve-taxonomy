@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field, fields
 from typing import Annotated, Optional
 
@@ -34,6 +35,14 @@ class Configuration:
         default=10,
         metadata={
             "description": "The maximum number of search results to return for each search query."
+        },
+    )
+
+    anthropic_api_key: str = field(
+        default_factory=lambda: os.getenv("ANTHROPIC_API_KEY", ""),
+        metadata={
+            "description": "The API key for Anthropic models. "
+            "Will be loaded from ANTHROPIC_API_KEY environment variable."
         },
     )
 

@@ -33,7 +33,6 @@ def _parse_labels(output_text: str) -> Dict[str, str]:
 
 def _format_taxonomy(clusters: List[Dict[str, str]]) -> str:
     """Format taxonomy clusters as XML."""
-    print(f"Formatting taxonomy with clusters: {clusters}")
     
     xml = "<cluster_table>\n"
     
@@ -46,12 +45,10 @@ def _format_taxonomy(clusters: List[Dict[str, str]]) -> str:
     for cluster in clusters:
         xml += "  <cluster>\n"
         if isinstance(cluster, dict):
-            print(f"Processing dict cluster: {cluster}")
             xml += f'    <id>{cluster["id"]}</id>\n'
             xml += f'    <name>{cluster["name"]}</name>\n'
             xml += f'    <description>{cluster["description"]}</description>\n'
         else:
-            print(f"Processing non-dict cluster: {cluster} of type {type(cluster)}")
             xml += f'    <id>{getattr(cluster, "id", "")}</id>\n'
             xml += f'    <name>{getattr(cluster, "name", "")}</name>\n'
             xml += f'    <description>{getattr(cluster, "description", "")}</description>\n'
@@ -117,12 +114,6 @@ async def label_documents(
     max_tokens: int = 2000,
 ) -> dict:
     """Label documents using the generated taxonomy."""
-    print("Labeling documents with generated taxonomy categories...")
-    
-    # Debug state
-    print(f"State clusters: {state.clusters}")
-    print(f"Latest clusters type: {type(state.clusters[-1])}")
-    print(f"Latest clusters: {state.clusters[-1]}")
     
     # Set up the chain
     labeling_chain = _setup_classification_chain(model_name, max_tokens)
@@ -145,7 +136,6 @@ async def label_documents(
     if not latest_clusters:
         raise ValueError("No valid clusters found in state")
         
-    print(f"Using clusters for labeling: {latest_clusters}")
     
     # Process documents in batches
     labeled_docs = []

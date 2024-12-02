@@ -171,7 +171,6 @@ def process_runs(left: List[Doc], right: List[Union[Doc, Run]], sample: Optional
 
     if sample is not None and sample < len(converted):
         converted = random.sample(converted, sample)
-        print(f"Sampled {len(converted)} documents for processing.")
     else:
         print(f"Processing all {len(converted)} documents.")
 
@@ -190,7 +189,6 @@ TAXONOMY_CONFIG = {
 
 def parse_taxa(output_text: str) -> Dict[str, List[Dict[str, str]]]:
     """Extract the taxonomy from the generated output."""
-    print(f"\nParsing taxonomy from output: {output_text[:200]}...")  # Show first 200 chars
     
     cluster_matches = re.findall(
         r"\s*<id>(.*?)</id>\s*<name>(.*?)</name>\s*<description>(.*?)</description>\s*",
@@ -203,7 +201,6 @@ def parse_taxa(output_text: str) -> Dict[str, List[Dict[str, str]]]:
         for id, name, description in cluster_matches
     ]
     
-    print(f"Parsed clusters: {clusters}")
     return {"clusters": clusters}
 
 
@@ -251,20 +248,7 @@ async def invoke_taxonomy_chain(
     config: RunnableConfig,
     mb_indices: List[int],
 ) -> Dict[str, List[List[Dict[str, str]]]]:
-    """Invoke the taxonomy generation chain.
-    
-    Args:
-        chain: The runnable chain for taxonomy generation
-        state: Current application state
-        config: Configuration for the run
-        mb_indices: Indices of documents in the current minibatch
-        
-    Returns:
-        dict: Updated clusters and status
-        
-    Raises:
-        Exception: If chain invocation fails
-    """
+    """Invoke the taxonomy generation chain."""
     try:
         configurable = config["configurable"]
         minibatch = [state.documents[idx] for idx in mb_indices]
@@ -273,11 +257,19 @@ async def invoke_taxonomy_chain(
         previous_taxonomy = state.clusters[-1] if state.clusters else []
         cluster_table_xml = format_taxonomy(previous_taxonomy)
 
+        # Format feedback if it exists
+        feedback = "No previous feedback provided."
+        if state.user_feedback:
+            feedback = f"Previous user feedback: {state.user_feedback.feedback}"
+            if state.user_feedback.explanation:
+                feedback += f"\nReason for modification: {state.user_feedback.explanation}"
+
         updated_taxonomy = await chain.ainvoke(
             {
                 "data_xml": data_table_xml,
                 "use_case": state.use_case,
                 "cluster_table_xml": cluster_table_xml,
+                "feedback": feedback,  # Add feedback to the prompt variables
                 "suggestion_length": configurable.get(
                     "suggestion_length", 
                     TAXONOMY_CONFIG["suggestion_length"]

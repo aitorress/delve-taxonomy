@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Annotated, List, Optional, Dict, Sequence
+from typing import Annotated, List, Optional, Dict, Sequence, Literal
 import operator
 
 from langchain_core.messages import AnyMessage
@@ -19,6 +19,13 @@ class Doc:
     summary: Optional[str] = None
     explanation: Optional[str] = None
     category: Optional[str] = None
+
+
+@dataclass
+class UserFeedback:
+    decision: Literal["continue", "modify"]
+    explanation: str
+    feedback: str | None = None
 
 
 @dataclass
@@ -46,3 +53,4 @@ class State(InputState):
     status: Annotated[List[str], operator.add] = field(default_factory=list)
     use_case: str = field(default="")
     is_last_step: IsLastStep = field(default=False)
+    user_feedback: Optional[UserFeedback] = None

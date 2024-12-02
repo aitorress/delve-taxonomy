@@ -22,19 +22,15 @@ async def retrieve_runs(state: State, config: RunnableConfig) -> dict:
     Raises:
         ValueError: If project_name is not set
     """
-    print("Starting taxonomy test...")
 
     if not state.project_name:
         raise ValueError("project_name not set in state")
 
-    print(f"Using project: {state.project_name}")
     client = Client(api_key=state.org_id)
 
-    print(f"Fetching runs from the past {state.days} days...")
     delta_days = datetime.now() - timedelta(days=state.days)
 
     max_runs = config["configurable"].get("max_runs", 500)
-    print(f"Max runs set to: {max_runs}")
 
     runs = list(
         client.list_runs(
@@ -45,7 +41,6 @@ async def retrieve_runs(state: State, config: RunnableConfig) -> dict:
             limit=max_runs,
         )
     )
-    print(f"Fetched {len(runs)} runs.")
 
     if len(runs) == max_runs:
         status_message = f"Fetched runs were capped at {max_runs} due to the set limit."
@@ -53,7 +48,6 @@ async def retrieve_runs(state: State, config: RunnableConfig) -> dict:
         status_message = f"Fetched {len(runs)} runs successfully..."
 
     sample_size = config["configurable"].get("sample_size", 50)
-    print(f"Sample size set to: {sample_size}")
 
     return {
         "all_documents": process_runs(left=[], right=runs),

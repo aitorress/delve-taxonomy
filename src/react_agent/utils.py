@@ -189,23 +189,21 @@ TAXONOMY_CONFIG = {
 
 
 def parse_taxa(output_text: str) -> Dict[str, List[Dict[str, str]]]:
-    """Extract the taxonomy from the generated output.
+    """Extract the taxonomy from the generated output."""
+    print(f"\nParsing taxonomy from output: {output_text[:200]}...")  # Show first 200 chars
     
-    Args:
-        output_text: XML formatted taxonomy string
-        
-    Returns:
-        dict: Parsed clusters with their properties
-    """
     cluster_matches = re.findall(
         r"\s*<id>(.*?)</id>\s*<name>(.*?)</name>\s*<description>(.*?)</description>\s*",
         output_text,
         re.DOTALL,
     )
+    
     clusters = [
         {"id": id.strip(), "name": name.strip(), "description": description.strip()}
         for id, name, description in cluster_matches
     ]
+    
+    print(f"Parsed clusters: {clusters}")
     return {"clusters": clusters}
 
 

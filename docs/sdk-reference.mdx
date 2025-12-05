@@ -1,0 +1,536 @@
+---
+title: 'SDK Reference'
+description: 'Complete Python SDK reference for Delve'
+---
+
+## Installation
+
+```bash
+pip install delve
+```
+
+## Delve Client
+
+The main class for interacting with Delve programmatically.
+
+### Basic Usage
+
+```python
+from delve import Delve
+
+# Initialize with defaults
+delve = Delve()
+
+# Run taxonomy generation
+result = delve.run_sync("data.csv", text_column="text")
+
+# Access results
+print(result.taxonomy)
+print(result.labeled_documents)
+```
+
+### Initialization
+
+```python
+delve = Delve(
+    model="anthropic/claude-3-5-sonnet-20241022",
+    fast_llm="anthropic/claude-3-haiku-20240307",
+    sample_size=100,
+    batch_size=200,
+    use_case="Generate taxonomy for my data",
+    output_dir="./results",
+    output_formats=["json", "csv", "markdown"],
+    verbose=True
+)
+```
+
+## Configuration Options
+
+<ParamField path="model" type="string" default="anthropic/claude-3-5-sonnet-20241022">
+  Main LLM model for taxonomy generation and reasoning.
+
+  ```python
+  delve = Delve(model="anthropic/claude-opus-4")
+  ```
+
+  Supported models:
+  - `anthropic/claude-3-5-sonnet-20241022` (recommended)
+  - `anthropic/claude-opus-4` (most capable)
+  - `anthropic/claude-3-haiku-20240307` (fastest/cheapest)
+  - Any model supported by LiteLLM
+</ParamField>
+
+<ParamField path="fast_llm" type="string" default="anthropic/claude-3-haiku-20240307">
+  Faster model for document summarization to reduce costs.
+
+  ```python
+  delve = Delve(fast_llm="anthropic/claude-3-haiku-20240307")
+  ```
+
+  Use a faster, cheaper model for the summarization step.
+</ParamField>
+
+<ParamField path="sample_size" type="integer" default="100">
+  Number of documents to sample for taxonomy generation.
+
+  ```python
+  delve = Delve(sample_size=200)
+  ```
+
+  <Tip>
+    Larger samples (200-500) produce more comprehensive taxonomies but cost more and take longer. Start with 100 for quick iterations.
+  </Tip>
+</ParamField>
+
+<ParamField path="batch_size" type="integer" default="200">
+  Number of documents per minibatch during iterative clustering.
+
+  ```python
+  delve = Delve(batch_size=50)
+  ```
+
+  <Info>
+    Smaller batches (50-100) produce more refined taxonomies. Larger batches (200-300) are faster but may be less precise.
+  </Info>
+</ParamField>
+
+<ParamField path="use_case" type="string" default="Generate taxonomy for categorizing document content">
+  Custom description of your taxonomy use case.
+
+  ```python
+  delve = Delve(
+      use_case="Categorize customer feedback by product feature and sentiment"
+  )
+  ```
+
+  <Tip>
+    Providing a specific use case helps guide the model to generate more relevant categories for your domain.
+  </Tip>
+</ParamField>
+
+<ParamField path="output_dir" type="string" default="./results">
+  Directory for saving output files.
+
+  ```python
+  delve = Delve(output_dir="./my-results")
+  ```
+
+  Creates the directory if it doesn't exist.
+</ParamField>
+
+<ParamField path="output_formats" type="list" default="['json', 'csv', 'markdown']">
+  List of output formats to generate.
+
+  ```python
+  delve = Delve(output_formats=["json", "csv"])
+  ```
+
+  Available formats:
+  - `json` - Machine-readable taxonomy and labeled documents
+  - `csv` - Spreadsheet format for analysis
+  - `markdown` - Human-readable reports
+</ParamField>
+
+<ParamField path="verbose" type="boolean" default="true">
+  Enable progress logging during processing.
+
+  ```python
+  delve = Delve(verbose=False)  # Quiet mode
+  ```
+</ParamField>
+
+## Methods
+
+### run_sync()
+
+Synchronous method for taxonomy generation (recommended for most use cases).
+
+```python
+result = delve.run_sync(
+    data,
+    text_column=None,
+    id_column=None,
+    source_type=None,
+    **adapter_kwargs
+)
+```
+
+<ParamField path="data" type="str | Path | DataFrame" required>
+  Data source to process. Can be:
+  - Path to CSV file (`"data.csv"`)
+  - Path to JSON/JSONL file (`"data.json"`)
+  - LangSmith URI (`"langsmith://project-name"`)
+  - pandas DataFrame
+</ParamField>
+
+<ParamField path="text_column" type="string">
+  Column/field name containing text content (required for CSV/DataFrame).
+
+  ```python
+  result = delve.run_sync("data.csv", text_column="message")
+  ```
+</ParamField>
+
+<ParamField path="id_column" type="string">
+  Column/field name for document IDs (optional).
+
+  ```python
+  result = delve.run_sync(
+      "data.csv",
+      text_column="text",
+      id_column="doc_id"
+  )
+  ```
+</ParamField>
+
+<ParamField path="source_type" type="string">
+  Force specific adapter type: `csv`, `json`, `jsonl`, `langsmith`, `dataframe`
+
+  ```python
+  result = delve.run_sync(
+      "data.txt",
+      source_type="json",
+      text_field="content"
+  )
+  ```
+</ParamField>
+
+<ParamField path="**adapter_kwargs" type="dict">
+  Additional adapter-specific parameters:
+
+  **For JSON:**
+  - `json_path` - JSONPath expression for nested data
+  - `text_field` - Field name containing text
+
+  **For LangSmith:**
+  - `api_key` - LangSmith API key
+  - `days` - Days to look back (default: 7)
+  - `max_runs` - Maximum runs to fetch
+  - `filter_expr` - LangSmith filter expression
+</ParamField>
+
+**Returns:** `DelveResult` object with taxonomy, labeled documents, and metadata.
+
+**Example:**
+
+```python
+from delve import Delve
+
+delve = Delve(sample_size=150)
+result = delve.run_sync(
+    "feedback.csv",
+    text_column="comment",
+    id_column="ticket_id"
+)
+
+print(f"Generated {len(result.taxonomy)} categories")
+for category in result.taxonomy:
+    print(f"- {category.name}: {category.description}")
+```
+
+### run()
+
+Asynchronous method for taxonomy generation.
+
+```python
+result = await delve.run(
+    data,
+    text_column=None,
+    id_column=None,
+    source_type=None,
+    **adapter_kwargs
+)
+```
+
+Parameters are identical to `run_sync()`. Use this for async applications.
+
+**Example:**
+
+```python
+import asyncio
+from delve import Delve
+
+async def main():
+    delve = Delve()
+    result = await delve.run("data.csv", text_column="text")
+    print(result.taxonomy)
+
+asyncio.run(main())
+```
+
+## Data Sources
+
+### CSV Files
+
+```python
+result = delve.run_sync(
+    "data.csv",
+    text_column="message",
+    id_column="id"  # optional
+)
+```
+
+### JSON Files
+
+<Tabs>
+  <Tab title="Simple JSON">
+    ```python
+    # JSON with text field
+    result = delve.run_sync(
+        "data.json",
+        text_field="content"
+    )
+    ```
+  </Tab>
+
+  <Tab title="Nested JSON">
+    ```python
+    # Use JSONPath for nested structures
+    result = delve.run_sync(
+        "data.json",
+        json_path="$.messages[*].content"
+    )
+    ```
+  </Tab>
+
+  <Tab title="JSONL">
+    ```python
+    # Newline-delimited JSON
+    result = delve.run_sync(
+        "data.jsonl",
+        source_type="jsonl"
+    )
+    ```
+  </Tab>
+</Tabs>
+
+### pandas DataFrames
+
+```python
+import pandas as pd
+
+df = pd.read_csv("data.csv")
+result = delve.run_sync(
+    df,
+    text_column="message",
+    id_column="id"
+)
+```
+
+### LangSmith
+
+```python
+result = delve.run_sync(
+    "langsmith://my-project",
+    api_key="lsv2_...",  # or set LANGSMITH_API_KEY env var
+    days=7,              # look back 7 days
+    max_runs=1000       # limit to 1000 runs
+)
+```
+
+## Working with Results
+
+### DelveResult Object
+
+The `DelveResult` object provides access to all outputs:
+
+```python
+result = delve.run_sync("data.csv", text_column="text")
+
+# Access taxonomy
+result.taxonomy  # List[TaxonomyCategory]
+
+# Access labeled documents
+result.labeled_documents  # List[Doc]
+
+# Access metadata
+result.metadata  # Dict[str, Any]
+
+# Access configuration used
+result.config  # Configuration
+
+# Get export file paths
+result.export_paths  # Dict[str, Path]
+```
+
+### Taxonomy
+
+```python
+# Iterate through categories
+for category in result.taxonomy:
+    print(f"ID: {category.id}")
+    print(f"Name: {category.name}")
+    print(f"Description: {category.description}")
+    print()
+
+# Get specific category
+tech_support = next(
+    c for c in result.taxonomy
+    if c.name == "Technical Support"
+)
+```
+
+### Labeled Documents
+
+```python
+# Iterate through documents
+for doc in result.labeled_documents:
+    print(f"ID: {doc.id}")
+    print(f"Text: {doc.text[:100]}...")
+    print(f"Category: {doc.category}")
+    print(f"Explanation: {doc.explanation}")
+    print()
+
+# Filter by category
+tech_docs = [
+    doc for doc in result.labeled_documents
+    if doc.category == "Technical Support"
+]
+
+print(f"Found {len(tech_docs)} technical support documents")
+```
+
+### Category Distribution
+
+```python
+from collections import Counter
+
+# Count documents per category
+distribution = Counter(
+    doc.category for doc in result.labeled_documents
+)
+
+for category, count in distribution.most_common():
+    percentage = (count / len(result.labeled_documents)) * 100
+    print(f"{category}: {count} ({percentage:.1f}%)")
+```
+
+### Export Paths
+
+```python
+# Get paths to output files
+print(result.export_paths['taxonomy'])           # taxonomy.json
+print(result.export_paths['labeled_documents'])  # labeled_documents.json
+print(result.export_paths['csv'])                # labeled_data.csv
+print(result.export_paths['report'])             # report.md
+```
+
+## Advanced Usage
+
+### Custom Use Cases
+
+Provide domain-specific context for better results:
+
+```python
+delve = Delve(
+    use_case="""
+    Categorize customer feedback into:
+    - Product features mentioned
+    - User sentiment (positive/negative/neutral)
+    - Priority level (urgent/normal/low)
+    """
+)
+result = delve.run_sync("feedback.csv", text_column="comment")
+```
+
+### Large Datasets
+
+Process large datasets efficiently with sampling:
+
+```python
+delve = Delve(
+    sample_size=500,  # Sample more for better coverage
+    batch_size=50     # Smaller batches for precision
+)
+result = delve.run_sync("large_dataset.csv", text_column="text")
+```
+
+### Multiple Models
+
+Use different models for different steps:
+
+```python
+delve = Delve(
+    model="anthropic/claude-opus-4",          # Best model for taxonomy
+    fast_llm="anthropic/claude-3-haiku-20240307"  # Fast model for summaries
+)
+result = delve.run_sync("data.csv", text_column="text")
+```
+
+### Creating DataFrames from Results
+
+Convert results to pandas DataFrame for analysis:
+
+```python
+import pandas as pd
+
+result = delve.run_sync("data.csv", text_column="text")
+
+# Create DataFrame from labeled documents
+df = pd.DataFrame([
+    {
+        "id": doc.id,
+        "text": doc.text,
+        "category": doc.category,
+        "explanation": doc.explanation
+    }
+    for doc in result.labeled_documents
+])
+
+# Analyze
+print(df['category'].value_counts())
+print(df.groupby('category')['text'].count())
+```
+
+## Error Handling
+
+```python
+from delve import Delve
+
+try:
+    delve = Delve()
+    result = delve.run_sync("data.csv", text_column="text")
+except ValueError as e:
+    # Missing API key, invalid parameters, etc.
+    print(f"Configuration error: {e}")
+except FileNotFoundError as e:
+    # File doesn't exist
+    print(f"File not found: {e}")
+except Exception as e:
+    # Other errors
+    print(f"Error: {e}")
+```
+
+## Environment Variables
+
+Set these before running your code:
+
+```bash
+# Required
+export ANTHROPIC_API_KEY="your-anthropic-key"
+
+# Optional
+export LANGSMITH_API_KEY="your-langsmith-key"
+export LITELLM_LOG="DEBUG"  # Enable detailed logging
+```
+
+Or use python-dotenv:
+
+```python
+from dotenv import load_dotenv
+load_dotenv()
+
+from delve import Delve
+# API keys are loaded automatically
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Examples" icon="book" href="/examples">
+    See working code examples
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/cli-reference">
+    Learn CLI commands
+  </Card>
+</CardGroup>

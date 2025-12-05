@@ -1,0 +1,68 @@
+---
+title: 'What is Delve?'
+description: 'AI-powered taxonomy generation using state-of-the-art language models'
+---
+
+<Info>
+  Delve helps you automatically generate taxonomies from unstructured data using Claude and other LLMs.
+</Info>
+
+## Overview
+
+Delve is a production-ready SDK and CLI for automatically generating taxonomies from your data using state-of-the-art language models. It analyzes your documents, identifies patterns, and creates a structured taxonomy with automatic categorization.
+
+Whether you have customer feedback, support tickets, user reviews, or any other unstructured text data, Delve can automatically discover categories and organize your content.
+
+## Key Features
+
+- **Automated Taxonomy Generation** - No manual category creation needed. Delve uses iterative minibatch-based clustering with Claude 3.5 Sonnet to automatically discover categories in your data.
+
+- **Multiple Data Sources** - Work with CSV files, JSON/JSONL, LangSmith runs, or pandas DataFrames. Flexible adapters make it easy to process data from any source.
+
+- **Smart Categorization** - Iterative refinement with minibatch clustering ensures high-quality taxonomies. Built-in LLM-based validation catches quality issues.
+
+- **Flexible Exports** - Get your results in JSON, CSV, and Markdown reports. Machine-readable formats for integration, human-readable reports for analysis.
+
+- **Both SDK and CLI** - Use Delve programmatically in your Python applications or from the command line for quick analysis.
+
+- **Smart Sampling** - Automatically samples large datasets for efficient processing while maintaining representative coverage.
+
+## How It Works
+
+Delve uses a sophisticated multi-stage pipeline powered by LangGraph:
+
+1. **Data Loading** - Adapters load data from various sources (CSV, JSON, LangSmith, DataFrame)
+2. **Summarization** - Fast LLM generates concise summaries of each document to reduce token usage
+3. **Minibatch Generation** - Documents are grouped into minibatches for efficient processing
+4. **Iterative Clustering** - Each minibatch is analyzed to generate category candidates
+5. **Taxonomy Update** - Categories are merged, refined, and consolidated across iterations
+6. **Quality Review** - LLM validates taxonomy quality and completeness
+7. **Document Labeling** - All documents are categorized with explanations
+8. **Export** - Results saved in multiple formats (JSON, CSV, Markdown)
+
+## Use Cases
+
+Delve is perfect for:
+
+- **Customer Feedback Analysis** - Automatically categorize feedback into product areas, features, and sentiment
+- **Support Ticket Classification** - Organize support tickets by issue type, urgency, and category
+- **Content Organization** - Create taxonomies for articles, documentation, or knowledge bases
+- **Research Data Analysis** - Categorize survey responses, interview transcripts, or research notes
+- **Social Media Monitoring** - Classify social media posts, comments, and mentions
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get started in 5 minutes
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/cli-reference">
+    Learn CLI commands
+  </Card>
+  <Card title="SDK Reference" icon="code" href="/sdk-reference">
+    Use the Python SDK
+  </Card>
+  <Card title="Examples" icon="book" href="/examples">
+    See code examples
+  </Card>
+</CardGroup>

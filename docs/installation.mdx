@@ -1,0 +1,248 @@
+---
+title: 'Installation'
+description: 'Install Delve and set up your environment'
+---
+
+## Requirements
+
+<Card title="Python 3.9+" icon="python">
+  Delve requires Python 3.9 or higher. Check your version with `python --version`
+</Card>
+
+## Installation Methods
+
+<Tabs>
+  <Tab title="PyPI (Recommended)">
+    Install Delve from PyPI using pip:
+
+    ```bash
+    pip install delve
+    ```
+
+    This is the easiest method and works with any Python environment.
+  </Tab>
+
+  <Tab title="uv (Fast)">
+    Using [`uv`](https://github.com/astral-sh/uv) for fast dependency management:
+
+    First, install `uv` if you haven't already:
+
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+
+    Then add Delve to your project:
+
+    ```bash
+    uv add delve
+    ```
+
+    Run Delve without activation:
+
+    ```bash
+    uv run delve --version
+    ```
+  </Tab>
+
+  <Tab title="From Source">
+    Clone and install from source for development:
+
+    **Using uv:**
+    ```bash
+    git clone https://github.com/anthropics/delve.git
+    cd delve
+    uv venv
+    uv pip install -e .
+    ```
+
+    **Using pip:**
+    ```bash
+    git clone https://github.com/anthropics/delve.git
+    cd delve
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    pip install -e .
+    ```
+  </Tab>
+</Tabs>
+
+## API Key Configuration
+
+### Anthropic API Key (Required)
+
+Delve uses Claude models from Anthropic. You'll need an API key:
+
+<Steps>
+  <Step title="Get an API Key">
+    Sign up and get your API key from the [Anthropic Console](https://console.anthropic.com/)
+  </Step>
+
+  <Step title="Set Environment Variable">
+    Set your API key as an environment variable:
+
+    ```bash
+    export ANTHROPIC_API_KEY="your-api-key-here"
+    ```
+
+    <Tip>
+      Add this to your `~/.bashrc`, `~/.zshrc`, or `~/.profile` to make it permanent.
+    </Tip>
+  </Step>
+
+  <Step title="Verify Installation">
+    Check that Delve can access your API key:
+
+    ```bash
+    delve --version
+    ```
+  </Step>
+</Steps>
+
+### LangSmith API Key (Optional)
+
+If you want to use LangSmith as a data source:
+
+```bash
+export LANGSMITH_API_KEY="your-langsmith-key"
+```
+
+Get your LangSmith API key from [LangSmith](https://smith.langchain.com/).
+
+## Environment Variables
+
+Create a `.env` file in your project directory for easy management:
+
+```bash .env
+# Required
+ANTHROPIC_API_KEY=your-anthropic-key
+
+# Optional
+LANGSMITH_API_KEY=your-langsmith-key
+LITELLM_LOG=DEBUG  # Enable detailed LLM logging
+```
+
+Load it in your Python scripts:
+
+```python
+from dotenv import load_dotenv
+load_dotenv()
+
+from delve import Delve
+# API keys are automatically loaded from environment
+```
+
+## Verify Installation
+
+Test that everything is working:
+
+<Tabs>
+  <Tab title="CLI">
+    ```bash
+    # Check version
+    delve --version
+
+    # Get help
+    delve --help
+
+    # Test with sample data (if you have a CSV file)
+    delve run sample.csv --text-column text --sample-size 10
+    ```
+  </Tab>
+
+  <Tab title="SDK">
+    ```python
+    from delve import Delve
+
+    # This should work without errors
+    delve = Delve()
+    print("Delve is ready!")
+    ```
+  </Tab>
+</Tabs>
+
+## Using with uv
+
+If you installed with `uv`, you can run Delve without activating a virtual environment:
+
+```bash
+# CLI usage
+uv run delve run data.csv --text-column text
+
+# Python scripts
+uv run python your_script.py
+```
+
+## Using with Virtual Environments
+
+If you prefer traditional virtual environments:
+
+<CodeGroup>
+```bash Activate (Unix)
+source venv/bin/activate
+delve --version
+```
+
+```bash Activate (Windows)
+venv\Scripts\activate
+delve --version
+```
+</CodeGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Command not found: delve">
+    Make sure you've installed Delve in your current environment:
+
+    ```bash
+    pip install delve
+    ```
+
+    If using a virtual environment, ensure it's activated.
+  </Accordion>
+
+  <Accordion title="API key not found">
+    Ensure your `ANTHROPIC_API_KEY` environment variable is set:
+
+    ```bash
+    echo $ANTHROPIC_API_KEY
+    ```
+
+    If empty, set it:
+
+    ```bash
+    export ANTHROPIC_API_KEY="your-key"
+    ```
+  </Accordion>
+
+  <Accordion title="Authentication failed">
+    Your API key may be invalid or expired. Get a new one from the [Anthropic Console](https://console.anthropic.com/).
+  </Accordion>
+
+  <Accordion title="Python version too old">
+    Delve requires Python 3.9+. Upgrade your Python version:
+
+    ```bash
+    python --version  # Check current version
+    ```
+
+    Install Python 3.9+ from [python.org](https://www.python.org/downloads/)
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run your first taxonomy generation
+  </Card>
+  <Card title="CLI Reference" icon="terminal" href="/cli-reference">
+    Learn all CLI commands
+  </Card>
+  <Card title="SDK Reference" icon="code" href="/sdk-reference">
+    Explore the Python SDK
+  </Card>
+  <Card title="Examples" icon="book" href="/examples">
+    See code examples
+  </Card>
+</CardGroup>

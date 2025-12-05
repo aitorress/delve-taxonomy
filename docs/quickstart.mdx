@@ -1,0 +1,175 @@
+---
+title: 'Quickstart'
+description: 'Get started with Delve in 5 minutes'
+---
+
+Get up and running with Delve in just a few minutes. Choose your preferred interface below.
+
+<Tabs>
+  <Tab title="CLI">
+    ## Installation
+
+    <CodeGroup>
+    ```bash pip
+    pip install delve
+    ```
+
+    ```bash uv
+    uv add delve
+    ```
+    </CodeGroup>
+
+    ## Set API Key
+
+    Delve uses Claude for taxonomy generation. Set your Anthropic API key:
+
+    ```bash
+    export ANTHROPIC_API_KEY="your-api-key-here"
+    ```
+
+    <Info>
+      Get your API key from the [Anthropic Console](https://console.anthropic.com/)
+    </Info>
+
+    ## Run Your First Taxonomy Generation
+
+    Process a CSV file with text data:
+
+    ```bash
+    delve run data.csv --text-column conversation
+    ```
+
+    <Check>
+      Results will be saved to the `./results/` directory with taxonomy, labeled documents, and reports.
+    </Check>
+
+    ## View Results
+
+    Check your output directory for these files:
+
+    - `taxonomy.json` - Machine-readable taxonomy
+    - `labeled_documents.json` - Documents with categories
+    - `labeled_data.csv` - Spreadsheet format
+    - `report.md` - Human-readable summary
+
+    ## Next Steps
+
+    - Try different [data sources](/cli-reference#data-sources)
+    - Customize with [CLI options](/cli-reference#options)
+    - See more [examples](/examples)
+  </Tab>
+
+  <Tab title="SDK">
+    ## Installation
+
+    <CodeGroup>
+    ```bash pip
+    pip install delve
+    ```
+
+    ```bash uv
+    uv add delve
+    ```
+    </CodeGroup>
+
+    ## Set API Key
+
+    Set your Anthropic API key as an environment variable:
+
+    ```bash
+    export ANTHROPIC_API_KEY="your-api-key-here"
+    ```
+
+    <Info>
+      Get your API key from the [Anthropic Console](https://console.anthropic.com/)
+    </Info>
+
+    ## Basic Usage
+
+    Create a Python script with this code:
+
+    ```python
+    from delve import Delve
+
+    # Initialize Delve client
+    delve = Delve(sample_size=100)
+
+    # Run taxonomy generation
+    result = delve.run_sync("data.csv", text_column="conversation")
+
+    # Access results
+    print(f"Generated {len(result.taxonomy)} categories")
+    for category in result.taxonomy:
+        print(f"- {category.name}: {category.description}")
+    ```
+
+    <Check>
+      Results are automatically saved to `./results/` and returned as a `DelveResult` object.
+    </Check>
+
+    ## Access Results
+
+    The `DelveResult` object provides easy access to all outputs:
+
+    ```python
+    # Access taxonomy
+    for category in result.taxonomy:
+        print(f"{category.name}: {category.description}")
+
+    # Access labeled documents
+    for doc in result.labeled_documents:
+        print(f"{doc.id} → {doc.category}")
+
+    # Access metadata
+    print(f"Processed {result.metadata['total_documents']} documents")
+
+    # Get file paths
+    print(result.export_paths['taxonomy'])  # Path to taxonomy.json
+    ```
+
+    ## Next Steps
+
+    - Explore [configuration options](/sdk-reference#configuration-options)
+    - Try [different data sources](/sdk-reference#data-sources)
+    - Learn about [async usage](/sdk-reference#async-api)
+    - See more [examples](/examples)
+  </Tab>
+</Tabs>
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="CSV Files" icon="table">
+    Process customer feedback, support tickets, or survey responses from CSV files.
+  </Card>
+  <Card title="JSON Data" icon="brackets-curly">
+    Handle API responses, logs, or structured data with JSONPath support.
+  </Card>
+  <Card title="DataFrames" icon="chart-simple">
+    Work directly with pandas DataFrames for in-memory processing.
+  </Card>
+  <Card title="LangSmith" icon="link">
+    Analyze LangSmith project runs to categorize LLM interactions.
+  </Card>
+</CardGroup>
+
+## What Happens During Processing?
+
+1. **Sampling** - Delve samples your dataset (default: 100 documents)
+2. **Summarization** - Each document is summarized using Claude Haiku
+3. **Clustering** - Documents are grouped into minibatches and analyzed iteratively
+4. **Taxonomy Generation** - Categories are discovered and refined across batches
+5. **Validation** - The final taxonomy is reviewed for quality
+6. **Labeling** - All documents are categorized with explanations
+7. **Export** - Results are saved in multiple formats
+
+<Tip>
+  For large datasets, Delve automatically samples documents to ensure efficient processing while maintaining representative coverage.
+</Tip>
+
+## Need Help?
+
+- Check the [CLI Reference](/cli-reference) for all command options
+- See the [SDK Reference](/sdk-reference) for API details
+- Browse [Examples](/examples) for common patterns
+- Read the full [Installation Guide](/installation) for advanced setup

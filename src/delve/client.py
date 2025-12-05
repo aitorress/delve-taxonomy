@@ -1,0 +1,217 @@
+"""Main SDK client for Delve taxonomy generation."""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+from typing import Optional, List, Union
+
+import pandas as pd
+
+from delve.configuration import Configuration
+from delve.result import DelveResult
+from delve.adapters import create_adapter
+from delve.graph import graph
+from delve.state import State
+from delve.utils import validate_api_key
+
+
+class Delve:
+    """Main client for Delve taxonomy generation.
+
+    This class provides a simple interface for generating taxonomies
+    from various data sources and exporting results.
+
+    Examples:
+        >>> # Basic CSV usage
+        >>> delve = Delve()
+        >>> result = delve.run_sync("data.csv", text_column="text")
+        >>> print(f"Generated {len(result.taxonomy)} categories")
+
+        >>> # With custom configuration
+        >>> delve = Delve(
+        ...     model="anthropic/claude-3-5-sonnet-20241022",
+        ...     sample_size=200,
+        ...     output_dir="./my_results"
+        ... )
+        >>> result = delve.run_sync("data.json", text_field="content")
+    """
+
+    def __init__(
+        self,
+        model: str = "anthropic/claude-3-5-sonnet-20241022",
+        fast_llm: Optional[str] = None,
+        sample_size: int = 100,
+        batch_size: int = 200,
+        use_case: Optional[str] = None,
+        output_dir: str = "./results",
+        output_formats: Optional[List[str]] = None,
+        verbose: bool = True,
+    ):
+        """Initialize Delve client.
+
+        Args:
+            model: Main LLM model for reasoning (default: Claude 3.5 Sonnet)
+            fast_llm: Faster model for summarization (default: Claude 3 Haiku)
+            sample_size: Number of documents to sample for taxonomy generation
+            batch_size: Batch size for minibatch processing
+            use_case: Description of the taxonomy use case
+            output_dir: Directory for output files
+            output_formats: List of formats to generate (json, csv, markdown)
+            verbose: Enable progress logging
+        """
+        self.config = Configuration(
+            model=model,
+            fast_llm=fast_llm or "anthropic/claude-3-haiku-20240307",
+            sample_size=sample_size,
+            batch_size=batch_size,
+            use_case=use_case or "Generate taxonomy for categorizing document content",
+            output_dir=output_dir,
+            output_formats=output_formats or ["json", "csv", "markdown"],
+            verbose=verbose,
+        )
+
+    async def run(
+        self,
+        data: Union[str, Path, pd.DataFrame],
+        text_column: Optional[str] = None,
+        id_column: Optional[str] = None,
+        source_type: Optional[str] = None,
+        **adapter_kwargs,
+    ) -> DelveResult:
+        """Run taxonomy generation on data.
+
+        Args:
+            data: Data source (file path, URI, or DataFrame)
+            text_column: Column/field containing text content
+            id_column: Optional column/field for document IDs
+            source_type: Force specific adapter type (csv, json, langsmith, dataframe)
+            **adapter_kwargs: Additional adapter-specific parameters
+                - For JSON: json_path, text_field
+                - For LangSmith: api_key, days, max_runs, filter_expr
+
+        Returns:
+            DelveResult: Results object with taxonomy and labeled documents
+
+        Raises:
+            ValueError: If data source is invalid or required parameters are missing
+            Exception: If taxonomy generation fails
+
+        Examples:
+            >>> # CSV file
+            >>> result = await delve.run("data.csv", text_column="text")
+
+            >>> # JSON with JSONPath
+            >>> result = await delve.run(
+            ...     "data.json",
+            ...     json_path="$.messages[*].content"
+            ... )
+
+            >>> # LangSmith
+            >>> result = await delve.run(
+            ...     "langsmith://my-project",
+            ...     api_key="lsv2_...",
+            ...     days=7
+            ... )
+        """
+        # 0. Validate API key before starting
+        try:
+            validate_api_key()
+        except ValueError as e:
+            error_msg = str(e)
+            if self.config.verbose:
+                print(f"\n❌ {error_msg}\n")
+            raise
+        
+        # 1. Create adapter and load data
+        if self.config.verbose:
+            print(f"Loading data from {data}...")
+
+        # Filter out configuration parameters that shouldn't be passed to adapters
+        config_params = {
+            "model", "fast_llm", "sample_size", "batch_size",
+            "output_formats", "output_dir", "verbose", "use_case"
+        }
+        filtered_kwargs = {
+            k: v for k, v in adapter_kwargs.items()
+            if k not in config_params
+        }
+
+        adapter = create_adapter(
+            data,
+            text_column=text_column,
+            id_column=id_column,
+            source_type=source_type,
+            **filtered_kwargs,
+        )
+
+        # Validate and load documents
+        adapter.validate()
+        documents = await adapter.load()
+
+        if self.config.verbose:
+            print(f"✓ Loaded {len(documents)} documents")
+
+        # 2. Run graph with documents in initial state
+        if self.config.verbose:
+            print(f"Generating taxonomy...")
+
+        initial_state = {
+            "all_documents": documents,
+        }
+
+        result_state = await graph.ainvoke(
+            initial_state,
+            config={"configurable": self.config.to_dict()},
+        )
+
+        if self.config.verbose:
+            print(f"✓ Taxonomy generation complete")
+
+        # 3. Create result object
+        delve_result = DelveResult.from_state(result_state, self.config)
+
+        # 4. Export is handled by save_results node in the graph
+        # Just update export_paths from the result_state if available
+        if self.config.verbose:
+            print(f"✓ Results saved to {self.config.output_dir}/")
+
+        return delve_result
+
+    def run_sync(
+        self,
+        data: Union[str, Path, pd.DataFrame],
+        text_column: Optional[str] = None,
+        id_column: Optional[str] = None,
+        source_type: Optional[str] = None,
+        **adapter_kwargs,
+    ) -> DelveResult:
+        """Synchronous wrapper for run().
+
+        This is a convenience method for users who don't want to deal
+        with async/await syntax.
+
+        Args:
+            data: Data source (file path, URI, or DataFrame)
+            text_column: Column/field containing text content
+            id_column: Optional column/field for document IDs
+            source_type: Force specific adapter type
+            **adapter_kwargs: Additional adapter-specific parameters
+
+        Returns:
+            DelveResult: Results object with taxonomy and labeled documents
+
+        Examples:
+            >>> delve = Delve()
+            >>> result = delve.run_sync("data.csv", text_column="text")
+            >>> print(result.taxonomy)
+        """
+        return asyncio.run(
+            self.run(
+                data,
+                text_column=text_column,
+                id_column=id_column,
+                source_type=source_type,
+                **adapter_kwargs,
+            )
+        )

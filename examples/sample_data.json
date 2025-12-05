@@ -1,0 +1,31 @@
+{
+  "conversations": [
+    {
+      "id": "conv1",
+      "messages": [
+        {
+          "role": "user",
+          "content": "How do I reset my password?"
+        }
+      ]
+    },
+    {
+      "id": "conv2",
+      "messages": [
+        {
+          "role": "user",
+          "content": "What are your pricing plans?"
+        }
+      ]
+    },
+    {
+      "id": "conv3",
+      "messages": [
+        {
+          "role": "user",
+          "content": "My app keeps crashing on startup"
+        }
+      ]
+    }
+  ]
+}

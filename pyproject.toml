@@ -1,37 +1,62 @@
 [project]
-name = "react-agent"
-version = "0.0.1"
-description = "Starter template for making a custom Reasoning and Action agent (using tool calling) in LangGraph."
+name = "delve"
+version = "0.1.0"
+description = "AI-powered taxonomy generation for your data"
 authors = [
-    { name = "William Fu-Hinthorn", email = "13333726+hinthornw@users.noreply.github.com" },
+    { name = "Antonio Torres", email = "antorres@example.com" },
 ]
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.9"
+keywords = ["taxonomy", "classification", "nlp", "ai", "langchain", "langgraph"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Linguistic",
+]
 dependencies = [
     "langgraph>=0.2.6",
-    "langchain-openai>=0.1.22",
-    "langchain-anthropic>=0.1.23",
     "langchain>=0.2.14",
+    "langchain-anthropic>=0.1.23",
+    "langchain-openai>=0.1.22",
     "langchain-fireworks>=0.1.7",
-    "python-dotenv>=1.0.1",
     "langchain-community>=0.2.17",
-    "tavily-python>=0.4.0",
+    "langsmith>=0.1.0",
+    "python-dotenv>=1.0.1",
+    "click>=8.1.0",
+    "pandas>=2.0.0",
+    "jsonpath-ng>=1.6.0",
+    "rich>=13.0.0",
 ]
 
+[project.scripts]
+delve = "delve.cli.main:cli"
 
 [project.optional-dependencies]
-dev = ["mypy>=1.11.1", "ruff>=0.6.1"]
+dev = [
+    "mypy>=1.11.1",
+    "ruff>=0.6.1",
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+]
 
 [build-system]
 requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["langgraph.templates.react_agent", "react_agent"]
+packages = ["delve"]
 [tool.setuptools.package-dir]
-"langgraph.templates.react_agent" = "src/react_agent"
-"react_agent" = "src/react_agent"
+delve = "src/delve"
 
 
 [tool.setuptools.package-data]

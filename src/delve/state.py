@@ -46,7 +46,7 @@ class State(InputState, OutputState):
     documents: List[Doc] = field(default_factory=list)
     minibatches: List[List[int]] = field(default_factory=list)
     clusters: Annotated[List[List[Dict]], operator.add] = field(default_factory=list)
-    status: Annotated[List[str], operator.add] = field(default_factory=list)
+    # Note: status is inherited from OutputState, don't redefine it here
     use_case: str = field(default="")
     is_last_step: IsLastStep = field(default=False)
 

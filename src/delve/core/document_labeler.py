@@ -138,15 +138,17 @@ async def label_documents(
         labeled_docs.extend(batch_results)
 
     # Update documents with labels
+    # Note: batch_results only contain {"category": "..."} from _parse_labels
+    # The explanation field is not provided by the labeling chain
     updated_docs = [
         Doc(
             id=doc["id"] if isinstance(doc, dict) else doc.id,
             content=doc["content"] if isinstance(doc, dict) else doc.content,
             summary=doc.get("summary", "") if isinstance(doc, dict) else (doc.summary or ""),
-            explanation=doc.get("explanation", "") if isinstance(doc, dict) else (doc.explanation or ""),
-            category=category["category"]
+            explanation=None,  # Labeling chain doesn't provide explanations
+            category=category_result["category"]
         )
-        for doc, category in zip(state.documents, labeled_docs)
+        for doc, category_result in zip(state.documents, labeled_docs)
     ]
 
     return {

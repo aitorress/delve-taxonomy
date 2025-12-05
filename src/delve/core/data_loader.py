@@ -44,5 +44,6 @@ async def load_data(state: State, config: RunnableConfig) -> dict:
 
     return {
         "documents": sampled_docs,
+        "use_case": configuration.use_case,  # Pass use_case to state
         "status": [status_message],
     }

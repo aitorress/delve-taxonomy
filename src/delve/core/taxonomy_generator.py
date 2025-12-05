@@ -8,11 +8,12 @@ from delve.utils import load_chat_model, parse_taxa, invoke_taxonomy_chain
 from delve.configuration import Configuration
 from delve.prompts import TAXONOMY_GENERATION_PROMPT
 
-def _setup_taxonomy_chain(configuration: Configuration, feedback: str):
+def _setup_taxonomy_chain(configuration: Configuration, feedback: str, use_case: str):
     """Set up the chain for taxonomy generation."""
-    # Initialize the prompt with default use case
+    # Use the configured use_case, or fallback to default if empty
+    effective_use_case = use_case if use_case else "Generate the taxonomy that can be used to label the user intent in the conversation."
     taxonomy_prompt = TAXONOMY_GENERATION_PROMPT.partial(
-        use_case="Generate the taxonomy that can be used to label the user intent in the conversation.",
+        use_case=effective_use_case,
         feedback=feedback,
     )
     # Create the chain
@@ -38,8 +39,11 @@ async def generate_taxonomy(
     # Format the feedback (non-interactive mode, no user feedback)
     feedback = "No previous feedback provided."
     
-    # Set up the chain
-    taxonomy_chain = _setup_taxonomy_chain(configuration, feedback)
+    # Use use_case from state (populated from configuration in data_loader)
+    use_case = state.use_case if state.use_case else configuration.use_case
+    
+    # Set up the chain with the actual use_case
+    taxonomy_chain = _setup_taxonomy_chain(configuration, feedback, use_case)
 
     # Generate taxonomy using the first batch
     return await invoke_taxonomy_chain(

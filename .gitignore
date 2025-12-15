@@ -168,3 +168,7 @@ output*/
 *.ipynb
 jira_*.csv
 temp_*.csv
+
+# Personal guides (not for public repo)
+PYPI_PUBLICATION_GUIDE.md
+test_installation.py

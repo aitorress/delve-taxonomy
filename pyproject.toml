@@ -1,6 +1,6 @@
 [project]
 name = "delve-taxonomy"
-version = "0.1.0"
+version = "0.1.1"
 description = "AI-powered taxonomy generation for your data"
 authors = [
     { name = "Andres Torres", email = "torres.andres87@gmail.com" },
@@ -56,9 +56,8 @@ requires = ["setuptools>=73.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["delve"]
-[tool.setuptools.package-dir]
-delve = "src/delve"
+[tool.setuptools.packages.find]
+where = ["src"]
 
 
 [tool.setuptools.package-data]

@@ -87,3 +87,8 @@ lint.ignore = [
 "tests/*" = ["D", "UP"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as integration tests (require API keys)",
+]

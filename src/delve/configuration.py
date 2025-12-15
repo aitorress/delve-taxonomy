@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, fields
-from typing import Annotated, Optional, List
+from typing import Annotated, Optional, List, Union, Dict
 
 from langchain_core.runnables import RunnableConfig, ensure_config
 
@@ -70,6 +70,30 @@ class Configuration:
         },
     )
 
+    predefined_taxonomy: Optional[Union[str, List[Dict[str, str]]]] = field(
+        default=None,
+        metadata={
+            "description": "Pre-defined taxonomy to use instead of discovering one. "
+            "Can be a file path (JSON/CSV) or a list of category dicts with 'id', 'name', 'description'."
+        },
+    )
+
+    embedding_model: str = field(
+        default="text-embedding-3-large",
+        metadata={
+            "description": "OpenAI embedding model to use for classifier training. "
+            "Used when sample_size < total documents to train efficient classifier."
+        },
+    )
+
+    classifier_confidence_threshold: float = field(
+        default=0.0,
+        metadata={
+            "description": "Minimum confidence threshold for classifier predictions. "
+            "Documents below this threshold will be labeled by LLM. Set to 0 to disable LLM fallback."
+        },
+    )
+
     @classmethod
     def from_runnable_config(
         cls, config: Optional[RunnableConfig] = None
@@ -91,4 +115,7 @@ class Configuration:
             "output_dir": self.output_dir,
             "verbose": self.verbose,
             "use_case": self.use_case,
+            "predefined_taxonomy": self.predefined_taxonomy,
+            "embedding_model": self.embedding_model,
+            "classifier_confidence_threshold": self.classifier_confidence_threshold,
         }

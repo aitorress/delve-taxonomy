@@ -1,0 +1,27 @@
+[
+  {
+    "id": "1",
+    "name": "Product Delivery (User & Business Value)",
+    "description": "Work that directly results in shipped, user-facing capabilities with clear ownership, SLAs, and outcomes. Includes features and enhancements, UX improvements, integrations with downstream systems, reliability and bug fixes, and production incidents tied to user impact. Answers: 'Did we deliver something users or the business can rely on?'"
+  },
+  {
+    "id": "2",
+    "name": "AI Foundations & Refactoring (System Health)",
+    "description": "Work that keeps the AI system coherent as models, prompts, tools, and assumptions evolve. Includes model abstraction layers, prompt/chain refactors, evaluation harness changes, guardrails and safety patterns, cost/latency/reliability tuning, and technical debt specific to AI behavior. Answers: 'Can we change models or behavior without breaking everything?'"
+  },
+  {
+    "id": "3",
+    "name": "AI Tooling & Enablement (Leverage)",
+    "description": "Internal tools, frameworks, and workflows that multiply team effectiveness. Includes prompt management tools, evaluation dashboards, experimentation frameworks, CI/CD for AI artifacts, developer experience improvements, and reusable components and templates. Answers: 'Are we getting more output per engineer over time?'"
+  },
+  {
+    "id": "4",
+    "name": "Applied Experiments & Validation (Risk Reduction)",
+    "description": "Time-boxed, goal-oriented experiments that reduce uncertainty before committing to production work. Includes model comparisons, prompting strategies, RAG approaches, tool integrations, cost vs quality tradeoff analysis, and vendor/API evaluations. Answers: 'Is this worth building or scaling?'"
+  },
+  {
+    "id": "5",
+    "name": "Exploration & Innovation (Optionality)",
+    "description": "Low-commitment, curiosity-driven work that keeps the team aware of frontier shifts. Includes new model capabilities, research paper exploration, novel interaction patterns, industry trend monitoring, and cross-domain idea synthesis. Answers: 'What might matter next — before it's urgent?'"
+  }
+]

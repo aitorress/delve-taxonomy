@@ -1,0 +1,63 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "willow",
+  "name": "Delve",
+  "colors": {
+    "primary": "#4F46E5",
+    "light": "#818CF8",
+    "dark": "#3730A3"
+  },
+  "favicon": "/images/logo.png",
+  "navigation": {
+    "groups": [
+      {
+        "group": "Getting Started",
+        "pages": [
+          "introduction",
+          "quickstart",
+          "installation"
+        ]
+      },
+      {
+        "group": "CLI Usage",
+        "pages": [
+          "cli-reference"
+        ]
+      },
+      {
+        "group": "SDK Usage",
+        "pages": [
+          "sdk-reference"
+        ]
+      },
+      {
+        "group": "Examples",
+        "pages": [
+          "examples"
+        ]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/images/logo.png",
+    "dark": "/images/logo.png"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://google.com"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get Started",
+      "href": "https://google.com"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/anthropics/delve"
+    }
+  }
+}

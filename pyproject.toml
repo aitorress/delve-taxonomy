@@ -3,7 +3,7 @@ name = "delve"
 version = "0.1.0"
 description = "AI-powered taxonomy generation for your data"
 authors = [
-    { name = "Antonio Torres", email = "antorres@example.com" },
+    { name = "Andres Torres", email = "torres.andres87@gmail.com" },
 ]
 readme = "README.md"
 license = { text = "MIT" }
@@ -35,6 +35,8 @@ dependencies = [
     "pandas>=2.0.0",
     "jsonpath-ng>=1.6.0",
     "rich>=13.0.0",
+    "scikit-learn>=1.3.0",
+    "joblib>=1.3.0",
 ]
 
 [project.scripts]

@@ -66,4 +66,20 @@ ruff check src/
 ruff format src/
 ```
 
+### Documentation Development
+
+To work on the documentation locally, you'll need Node.js 20.17+ (for Mintlify):
+
+```bash
+# If using nvm, the project includes .nvmrc
+nvm use
+
+# Install Mintlify CLI (if not already installed)
+npm install -g mintlify
+
+# Run the docs server
+cd docs
+mintlify dev
+```
+
 See the [full documentation](https://delve.mintlify.app) for more details on contributing and development.

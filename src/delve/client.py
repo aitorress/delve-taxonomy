@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Dict
 
 import pandas as pd
 
@@ -47,18 +47,29 @@ class Delve:
         output_dir: str = "./results",
         output_formats: Optional[List[str]] = None,
         verbose: bool = True,
+        predefined_taxonomy: Optional[Union[str, List[Dict[str, str]]]] = None,
+        embedding_model: str = "text-embedding-3-large",
+        classifier_confidence_threshold: float = 0.0,
     ):
         """Initialize Delve client.
 
         Args:
             model: Main LLM model for reasoning (default: Claude 3.5 Sonnet)
             fast_llm: Faster model for summarization (default: Claude 3 Haiku)
-            sample_size: Number of documents to sample for taxonomy generation
+            sample_size: Number of documents to sample for LLM labeling.
+                If sample_size < total documents, trains a classifier to label the rest efficiently.
+                Set to 0 to process all documents.
             batch_size: Batch size for minibatch processing
             use_case: Description of the taxonomy use case
             output_dir: Directory for output files
             output_formats: List of formats to generate (json, csv, markdown)
             verbose: Enable progress logging
+            predefined_taxonomy: Pre-defined taxonomy to use instead of discovery.
+                Can be a file path (JSON/CSV) or a list of dicts with 'id', 'name', 'description'.
+                When provided, skips the discovery phase and directly labels documents.
+            embedding_model: OpenAI embedding model for classifier training (default: text-embedding-3-large)
+            classifier_confidence_threshold: Minimum confidence for classifier predictions.
+                Documents below threshold are labeled by LLM (default: 0.0 = no fallback).
         """
         self.config = Configuration(
             model=model,
@@ -69,6 +80,9 @@ class Delve:
             output_dir=output_dir,
             output_formats=output_formats or ["json", "csv", "markdown"],
             verbose=verbose,
+            predefined_taxonomy=predefined_taxonomy,
+            embedding_model=embedding_model,
+            classifier_confidence_threshold=classifier_confidence_threshold,
         )
 
     async def run(
@@ -154,7 +168,10 @@ class Delve:
 
         # 2. Run graph with documents in initial state
         if self.config.verbose:
-            print(f"Generating taxonomy...")
+            if self.config.predefined_taxonomy:
+                print(f"Using predefined taxonomy to label documents...")
+            else:
+                print(f"Generating taxonomy...")
 
         initial_state = {
             "all_documents": documents,
@@ -166,7 +183,10 @@ class Delve:
         )
 
         if self.config.verbose:
-            print(f"✓ Taxonomy generation complete")
+            if self.config.predefined_taxonomy:
+                print(f"✓ Document labeling complete")
+            else:
+                print(f"✓ Taxonomy generation complete")
 
         # 3. Create result object
         delve_result = DelveResult.from_state(result_state, self.config)

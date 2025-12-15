@@ -1,0 +1,27 @@
+[
+  {
+    "id": "1",
+    "name": "Technical Support",
+    "description": "Issues related to technical problems, bugs, system errors, or troubleshooting assistance"
+  },
+  {
+    "id": "2",
+    "name": "Billing and Payments",
+    "description": "Questions about invoices, payment methods, refunds, pricing, or subscription management"
+  },
+  {
+    "id": "3",
+    "name": "Feature Requests",
+    "description": "Requests for new features, enhancements to existing functionality, or product improvements"
+  },
+  {
+    "id": "4",
+    "name": "Account Management",
+    "description": "Issues related to account settings, authentication, user profiles, or access control"
+  },
+  {
+    "id": "5",
+    "name": "General Inquiry",
+    "description": "General questions about the product, service, or company information"
+  }
+]

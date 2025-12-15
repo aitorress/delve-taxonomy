@@ -13,7 +13,7 @@ from delve.core.taxonomy_updater import update_taxonomy
 from delve.core.taxonomy_reviewer import review_taxonomy
 from delve.core.document_labeler import label_documents
 from delve.core.results_saver import save_results
-from delve.routing import should_review
+from delve.routing import should_review, should_discover_taxonomy
 
 # Create the graph
 builder = StateGraph(State, input=InputState, config_schema=Configuration)
@@ -30,10 +30,23 @@ builder.add_node("save_results", save_results)
 
 # Add edges
 builder.add_edge(START, "load_data")
-builder.add_edge("load_data", "summarize")
+
+# Conditional routing: skip discovery if predefined taxonomy is loaded
+builder.add_conditional_edges(
+    "load_data",
+    should_discover_taxonomy,
+    {
+        "summarize": "summarize",  # Start discovery flow
+        "label_documents": "label_documents",  # Skip to labeling
+    },
+)
+
+# Discovery flow edges
 builder.add_edge("summarize", "get_minibatches")
 builder.add_edge("get_minibatches", "generate_taxonomy")
 builder.add_edge("generate_taxonomy", "update_taxonomy")
+
+# Review and labeling edges
 builder.add_edge("review_taxonomy", "label_documents")
 builder.add_edge("label_documents", "save_results")
 builder.add_edge("save_results", END)

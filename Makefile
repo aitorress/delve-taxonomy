@@ -1,4 +1,4 @@
-.PHONY: all format lint test tests test_watch integration_tests docker_tests help extended_tests
+.PHONY: all format lint test tests test_watch integration_tests docker_tests help extended_tests docs
 
 # Default target executed when no arguments are given to make.
 all: help
@@ -53,6 +53,18 @@ spell_fix:
 # HELP
 ######################
 
+######################
+# DOCUMENTATION
+######################
+
+docs:
+	@echo "Starting Mintlify docs server..."
+	@cd docs && mintlify dev
+
+######################
+# HELP
+######################
+
 help:
 	@echo '----'
 	@echo 'format                       - run code formatters'
@@ -61,4 +73,5 @@ help:
 	@echo 'tests                        - run unit tests'
 	@echo 'test TEST_FILE=<test_file>   - run all tests in file'
 	@echo 'test_watch                   - run unit tests in watch mode'
+	@echo 'docs                         - start Mintlify docs server (requires Node.js 20.17+)'
 

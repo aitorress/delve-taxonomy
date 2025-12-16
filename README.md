@@ -13,17 +13,24 @@ pip install delve-taxonomy
 # Set API key
 export ANTHROPIC_API_KEY="your-key-here"
 
-# Run
+# Run (with progress spinners)
 delve run data.csv --text-column text
+
+# With progress bars and ETA
+delve run data.csv --text-column text -v
 ```
 
 Or use the Python SDK:
 
 ```python
-from delve import Delve
+from delve import Delve, Verbosity
 
+# Silent by default (library best practice)
 delve = Delve()
 result = delve.run_sync("data.csv", text_column="text")
+
+# With progress output
+delve = Delve(verbosity=Verbosity.NORMAL)
 
 # Access results
 for category in result.taxonomy:

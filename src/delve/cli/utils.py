@@ -1,25 +1,12 @@
 """CLI utility functions."""
 
-import sys
-import logging
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING
 
 import click
 
-
-def setup_logging(verbose: bool):
-    """Configure logging based on verbosity.
-
-    Args:
-        verbose: Enable verbose logging
-    """
-    level = logging.INFO if verbose else logging.WARNING
-    logging.basicConfig(
-        level=level,
-        format="%(message)s",
-        handlers=[logging.StreamHandler(sys.stdout)],
-    )
+if TYPE_CHECKING:
+    from delve.console import Console
 
 
 def validate_file(path: str) -> bool:
@@ -85,23 +72,30 @@ def format_size(num_docs: int) -> str:
     return f"{num_docs:,} documents"
 
 
-def print_summary(result, output_dir: str):
+def print_summary(result, output_dir: str, console: "Console"):
     """Print results summary.
 
     Args:
         result: DelveResult object
         output_dir: Output directory path
+        console: Console instance for output
     """
-    click.secho("\n✓ Taxonomy generation complete!", fg="green", bold=True)
-
-    click.echo(f"\n📊 Generated {len(result.taxonomy)} categories from {format_size(len(result.labeled_documents))}")
+    console.print()
+    console.success("Taxonomy generation complete!")
+    console.print()
+    console.print(
+        f"Generated {len(result.taxonomy)} categories from "
+        f"{format_size(len(result.labeled_documents))}"
+    )
 
     # Show first 5 categories
-    click.echo("\n📋 Categories:")
+    console.print()
+    console.print("Categories:")
     for cat in result.taxonomy[:5]:
-        click.echo(f"  • {cat.name}: {cat.description}")
+        console.print(f"  [bold]{cat.name}[/bold]: {cat.description}")
     if len(result.taxonomy) > 5:
-        click.echo(f"  ... and {len(result.taxonomy) - 5} more")
+        console.print(f"  ... and {len(result.taxonomy) - 5} more")
 
     # Show output location
-    click.echo(f"\n📁 Results saved to: {click.style(output_dir, fg='cyan', bold=True)}")
+    console.print()
+    console.print(f"Results saved to: [cyan bold]{output_dir}[/cyan bold]")

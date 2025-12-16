@@ -15,7 +15,7 @@ from delve.state import Doc, State
 
 def validate_api_key() -> None:
     """Validate that ANTHROPIC_API_KEY is set.
-    
+
     Raises:
         ValueError: If API key is not set, with a helpful error message.
     """
@@ -28,7 +28,7 @@ def validate_api_key() -> None:
             "You can get an API key from: https://console.anthropic.com/\n"
             "For more information, see: https://docs.anthropic.com/claude/docs/getting-access-to-claude"
         )
-    
+
     # Basic validation - check if it looks like an Anthropic key
     if not api_key.startswith("sk-ant-"):
         raise ValueError(
@@ -37,6 +37,63 @@ def validate_api_key() -> None:
             f"Please check your API key and try again.\n\n"
             f"You can get a new API key from: https://console.anthropic.com/"
         )
+
+
+def validate_openai_api_key() -> None:
+    """Validate that OPENAI_API_KEY is set (needed for embeddings/classifier).
+
+    Raises:
+        ValueError: If API key is not set, with a helpful error message.
+    """
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError(
+            "OPENAI_API_KEY environment variable is not set.\n\n"
+            "This key is required for generating embeddings when using the classifier\n"
+            "(when sample_size < total documents).\n\n"
+            "Please set your OpenAI API key:\n"
+            "  export OPENAI_API_KEY=your-api-key-here\n\n"
+            "You can get an API key from: https://platform.openai.com/api-keys"
+        )
+
+    # Basic validation - check if it looks like an OpenAI key
+    if not (api_key.startswith("sk-") or api_key.startswith("sess-")):
+        raise ValueError(
+            f"OPENAI_API_KEY appears to be invalid.\n\n"
+            f"OpenAI API keys typically start with 'sk-'.\n"
+            f"Please check your API key and try again.\n\n"
+            f"You can get a new API key from: https://platform.openai.com/api-keys"
+        )
+
+
+def validate_all_api_keys(needs_openai: bool = True) -> None:
+    """Validate all required API keys upfront.
+
+    Args:
+        needs_openai: Whether OpenAI key is needed (for embeddings/classifier).
+                     Set to False if sample_size=0 (all docs labeled by LLM).
+
+    Raises:
+        ValueError: If any required API key is missing or invalid.
+    """
+    errors = []
+
+    # Check Anthropic key (always required)
+    try:
+        validate_api_key()
+    except ValueError as e:
+        errors.append(str(e))
+
+    # Check OpenAI key (needed for classifier/embeddings)
+    if needs_openai:
+        try:
+            validate_openai_api_key()
+        except ValueError as e:
+            errors.append(str(e))
+
+    if errors:
+        separator = "\n" + "=" * 50 + "\n"
+        raise ValueError(separator.join(errors))
 
 
 def get_message_text(msg: BaseMessage) -> str:
@@ -294,6 +351,7 @@ async def invoke_taxonomy_chain(
             "clusters": [updated_taxonomy["clusters"]],
             "status": ["Taxonomy generated.."],
         }
-    except Exception as e:
-        print("Taxonomy generation error: ", e)
+    except Exception:
+        # Re-raise to be handled by higher-level exception handlers
+        # which have access to console for proper error display
         raise

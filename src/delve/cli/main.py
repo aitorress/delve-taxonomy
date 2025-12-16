@@ -6,7 +6,9 @@ from typing import Optional
 import click
 
 from delve import Delve, __version__
-from delve.cli.utils import setup_logging, validate_file, detect_source_type, print_summary
+from delve.console import Console, Verbosity
+from delve.cli.utils import validate_file, detect_source_type, print_summary
+from delve.utils import validate_all_api_keys
 
 
 @click.group()
@@ -107,9 +109,14 @@ def cli():
     help="Days to look back (for LangSmith sources)",
 )
 @click.option(
-    "--verbose/--quiet",
-    default=True,
-    help="Enable/disable progress output",
+    "-q", "--quiet",
+    is_flag=True,
+    help="Only show errors",
+)
+@click.option(
+    "-v", "--verbose",
+    count=True,
+    help="Increase verbosity (-v for progress bars, -vv for debug)",
 )
 def run(
     data_source: str,
@@ -126,7 +133,8 @@ def run(
     use_case: Optional[str],
     langsmith_key: Optional[str],
     days: int,
-    verbose: bool,
+    quiet: bool,
+    verbose: int,
 ):
     """Run taxonomy generation on DATA_SOURCE.
 
@@ -155,14 +163,25 @@ def run(
       delve run data.csv --text-column text --sample-size 200 \\
         --model anthropic/claude-opus-4 --output-dir ./output
     """
-    setup_logging(verbose)
+    # Determine verbosity level
+    if quiet:
+        verbosity = Verbosity.QUIET
+    elif verbose >= 2:
+        verbosity = Verbosity.DEBUG
+    elif verbose == 1:
+        verbosity = Verbosity.VERBOSE
+    else:
+        verbosity = Verbosity.NORMAL  # CLI default
+
+    # Create console with appropriate verbosity
+    console = Console(verbosity)
 
     # Auto-detect source type if needed
     if source_type == "auto":
         try:
             source_type = detect_source_type(data_source)
         except click.BadParameter as e:
-            click.echo(f"Error: {e.message}", err=True)
+            console.error(e.message)
             sys.exit(1)
 
     # Validate file-based sources
@@ -170,24 +189,39 @@ def run(
         try:
             validate_file(data_source)
         except click.BadParameter as e:
-            click.echo(f"Error: {e.message}", err=True)
+            console.error(e.message)
             sys.exit(1)
 
     # Validate required parameters
     if source_type == "csv" and not text_column:
-        click.echo("Error: --text-column is required for CSV files", err=True)
+        console.error("--text-column is required for CSV files")
         sys.exit(1)
 
     if source_type == "langsmith" and not langsmith_key:
-        click.echo(
-            "Error: --langsmith-key is required for LangSmith sources. "
-            "Set LANGSMITH_API_KEY environment variable or use --langsmith-key option.",
-            err=True,
+        console.error(
+            "--langsmith-key is required for LangSmith sources. "
+            "Set LANGSMITH_API_KEY environment variable or use --langsmith-key option."
         )
         sys.exit(1)
 
-    # Create Delve client
-    delve = Delve(
+    # Validate API keys early - before any processing starts
+    # OpenAI key is needed if sample_size > 0 (classifier uses embeddings)
+    # If sample_size is 0, all docs are labeled by LLM, no embeddings needed
+    try:
+        with console.status("Validating API keys..."):
+            validate_all_api_keys(needs_openai=(sample_size > 0))
+        console.success("API keys validated")
+    except ValueError as e:
+        console.error("Missing or invalid API keys")
+        console.print()
+        # Print each line of the error message
+        for line in str(e).split("\n"):
+            if line.strip():
+                console.error(line)
+        sys.exit(1)
+
+    # Create Delve client with console
+    delve_client = Delve(
         model=model,
         fast_llm=fast_llm,
         sample_size=sample_size,
@@ -195,7 +229,8 @@ def run(
         use_case=use_case,
         output_dir=output_dir,
         output_formats=list(output_format),
-        verbose=verbose,
+        verbosity=verbosity,
+        console=console,
     )
 
     # Prepare adapter kwargs
@@ -208,14 +243,13 @@ def run(
 
     # Run taxonomy generation
     try:
-        if verbose:
-            click.echo(f"🚀 Starting taxonomy generation...")
-            click.echo(f"   Source: {data_source}")
-            click.echo(f"   Model: {model}")
-            click.echo(f"   Sample size: {sample_size}")
-            click.echo()
+        # Show startup info in verbose mode
+        console.info(f"Starting taxonomy generation...")
+        console.info(f"  Source: {data_source}")
+        console.info(f"  Model: {model}")
+        console.info(f"  Sample size: {sample_size}")
 
-        result = delve.run_sync(
+        result = delve_client.run_sync(
             data_source,
             text_column=text_column,
             id_column=id_column,
@@ -224,36 +258,36 @@ def run(
         )
 
         # Print summary
-        print_summary(result, output_dir)
+        print_summary(result, output_dir, console)
 
     except ValueError as e:
         # User-friendly errors (like missing API key, validation errors)
-        error_msg = str(e)
-        click.echo(f"\n❌ Error: {error_msg}", err=True)
+        console.error(str(e))
         sys.exit(1)
     except Exception as e:
         error_msg = str(e)
         error_lower = error_msg.lower()
-        
+
         # Check for common error patterns and provide helpful messages
         if "api_key" in error_lower or "authentication" in error_lower or "auth_token" in error_lower:
-            click.echo("\n❌ Authentication Error", err=True)
-            click.echo("\nThe API key is missing or invalid.", err=True)
-            click.echo("\nPlease set your Anthropic API key:", err=True)
-            click.echo("  export ANTHROPIC_API_KEY=your-api-key-here", err=True)
-            click.echo("\nYou can get an API key from: https://console.anthropic.com/", err=True)
+            console.error("Authentication Error")
+            console.error("The API key is missing or invalid.")
+            console.error("Please set your Anthropic API key:")
+            console.error("  export ANTHROPIC_API_KEY=your-api-key-here")
+            console.error("You can get an API key from: https://console.anthropic.com/")
         elif "could not resolve" in error_lower and "authentication" in error_lower:
-            click.echo("\n❌ API Key Not Found", err=True)
-            click.echo("\nThe ANTHROPIC_API_KEY environment variable is not set.", err=True)
-            click.echo("\nPlease set your API key:", err=True)
-            click.echo("  export ANTHROPIC_API_KEY=your-api-key-here", err=True)
-            click.echo("\nGet your API key: https://console.anthropic.com/", err=True)
+            console.error("API Key Not Found")
+            console.error("The ANTHROPIC_API_KEY environment variable is not set.")
+            console.error("Please set your API key:")
+            console.error("  export ANTHROPIC_API_KEY=your-api-key-here")
+            console.error("Get your API key: https://console.anthropic.com/")
         else:
-            click.echo(f"\n❌ Error: {error_msg}", err=True)
-        
-        if verbose:
+            console.error(error_msg)
+
+        # Show traceback in debug mode
+        if verbosity >= Verbosity.DEBUG:
             import traceback
-            click.echo("\nFull error details:", err=True)
+            console.debug("Full error details:")
             traceback.print_exc()
         sys.exit(1)
 

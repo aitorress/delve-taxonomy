@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, fields
-from typing import Annotated, Optional, List, Union, Dict
+from typing import TYPE_CHECKING, Annotated, Optional, List, Union, Dict
 
 from langchain_core.runnables import RunnableConfig, ensure_config
+
+from delve.console import Console, NullConsole, Verbosity
+
+if TYPE_CHECKING:
+    pass
 
 
 @dataclass(kw_only=True)
@@ -56,10 +61,25 @@ class Configuration:
         },
     )
 
-    verbose: bool = field(
-        default=True,
+    verbose: Optional[bool] = field(
+        default=None,
         metadata={
-            "description": "Enable verbose logging and progress updates."
+            "description": "Deprecated: Use verbosity instead. Kept for backward compatibility."
+        },
+    )
+
+    verbosity: Verbosity = field(
+        default=Verbosity.SILENT,
+        metadata={
+            "description": "Verbosity level: SILENT (0), QUIET (1), NORMAL (2), VERBOSE (3), DEBUG (4)."
+        },
+    )
+
+    console: Optional[Console] = field(
+        default=None,
+        repr=False,
+        metadata={
+            "description": "Console instance for output. Not serialized."
         },
     )
 
@@ -94,6 +114,29 @@ class Configuration:
         },
     )
 
+    def __post_init__(self) -> None:
+        """Handle backward compatibility and initialize console."""
+        # Handle backward compatibility: verbose=True/False -> verbosity
+        if self.verbose is not None:
+            if self.verbose:
+                self.verbosity = Verbosity.NORMAL
+            else:
+                self.verbosity = Verbosity.SILENT
+
+        # Create console if not provided
+        if self.console is None:
+            self.console = Console(self.verbosity)
+
+    def get_console(self) -> Console:
+        """Get the console instance, creating one if needed.
+
+        Returns:
+            Console instance for output.
+        """
+        if self.console is None:
+            self.console = Console(self.verbosity)
+        return self.console
+
     @classmethod
     def from_runnable_config(
         cls, config: Optional[RunnableConfig] = None
@@ -101,11 +144,25 @@ class Configuration:
         """Create a Configuration instance from a RunnableConfig object."""
         config = ensure_config(config)
         configurable = config.get("configurable") or {}
-        _fields = {f.name for f in fields(cls) if f.init}
-        return cls(**{k: v for k, v in configurable.items() if k in _fields})
+
+        # Filter to valid fields, excluding console (handled separately)
+        _fields = {f.name for f in fields(cls) if f.init and f.name != "console"}
+        init_kwargs = {k: v for k, v in configurable.items() if k in _fields}
+
+        # Handle verbosity conversion from int if needed
+        if "verbosity" in init_kwargs and isinstance(init_kwargs["verbosity"], int):
+            init_kwargs["verbosity"] = Verbosity(init_kwargs["verbosity"])
+
+        # Extract console from config if present
+        console = configurable.get("console")
+
+        return cls(console=console, **init_kwargs)
 
     def to_dict(self) -> dict:
-        """Convert configuration to dictionary for SDK usage."""
+        """Convert configuration to dictionary for SDK usage.
+
+        Note: console is included to pass through to graph nodes.
+        """
         return {
             "model": self.model,
             "fast_llm": self.fast_llm,
@@ -113,9 +170,10 @@ class Configuration:
             "batch_size": self.batch_size,
             "output_formats": self.output_formats,
             "output_dir": self.output_dir,
-            "verbose": self.verbose,
+            "verbosity": self.verbosity,
             "use_case": self.use_case,
             "predefined_taxonomy": self.predefined_taxonomy,
             "embedding_model": self.embedding_model,
             "classifier_confidence_threshold": self.classifier_confidence_threshold,
+            "console": self.console,
         }

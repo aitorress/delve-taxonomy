@@ -9,11 +9,12 @@ from typing import Optional, List, Union, Dict
 import pandas as pd
 
 from delve.configuration import Configuration
+from delve.console import Console, Verbosity
 from delve.result import DelveResult
 from delve.adapters import create_adapter
 from delve.graph import graph
 from delve.state import State, Doc
-from delve.utils import validate_api_key
+from delve.utils import validate_all_api_keys
 
 
 class Delve:
@@ -46,7 +47,9 @@ class Delve:
         use_case: Optional[str] = None,
         output_dir: str = "./results",
         output_formats: Optional[List[str]] = None,
-        verbose: bool = True,
+        verbose: Optional[bool] = None,
+        verbosity: Verbosity = Verbosity.SILENT,
+        console: Optional[Console] = None,
         predefined_taxonomy: Optional[Union[str, List[Dict[str, str]]]] = None,
         embedding_model: str = "text-embedding-3-large",
         classifier_confidence_threshold: float = 0.0,
@@ -63,7 +66,11 @@ class Delve:
             use_case: Description of the taxonomy use case
             output_dir: Directory for output files
             output_formats: List of formats to generate (json, csv, markdown)
-            verbose: Enable progress logging
+            verbose: Deprecated. Use verbosity instead.
+            verbosity: Verbosity level (SILENT, QUIET, NORMAL, VERBOSE, DEBUG).
+                SDK default is SILENT. Use NORMAL for progress output.
+            console: Optional Console instance. If not provided, one is created
+                based on verbosity level.
             predefined_taxonomy: Pre-defined taxonomy to use instead of discovery.
                 Can be a file path (JSON/CSV) or a list of dicts with 'id', 'name', 'description'.
                 When provided, skips the discovery phase and directly labels documents.
@@ -80,10 +87,13 @@ class Delve:
             output_dir=output_dir,
             output_formats=output_formats or ["json", "csv", "markdown"],
             verbose=verbose,
+            verbosity=verbosity,
+            console=console,
             predefined_taxonomy=predefined_taxonomy,
             embedding_model=embedding_model,
             classifier_confidence_threshold=classifier_confidence_threshold,
         )
+        self.console = self.config.get_console()
 
     async def run_with_docs(
         self,
@@ -109,37 +119,31 @@ class Delve:
             >>> delve = Delve(use_case="Categorize software issues")
             >>> result = await delve.run_with_docs(docs)
         """
-        # Validate API key
+        # Validate API keys early
+        # OpenAI key needed if sample_size > 0 (classifier uses embeddings)
+        needs_openai = self.config.sample_size > 0 and len(docs) > self.config.sample_size
         try:
-            validate_api_key()
+            validate_all_api_keys(needs_openai=needs_openai)
         except ValueError as e:
-            error_msg = str(e)
-            if self.config.verbose:
-                print(f"\n❌ {error_msg}\n")
+            self.console.error(str(e))
             raise
-
-        if self.config.verbose:
-            print(f"Processing {len(docs)} documents...")
 
         # Create initial state with docs
         initial_state = State(all_documents=docs)
 
-        # Run the graph
-        if self.config.verbose:
-            print("Running taxonomy generation...")
-
-        result_state = await graph.ainvoke(
-            initial_state,
-            config={"configurable": self.config.to_dict()},
-        )
+        # Run the graph with status spinner
+        with self.console.status(f"Processing {len(docs)} documents..."):
+            result_state = await graph.ainvoke(
+                initial_state,
+                config={"configurable": self.config.to_dict()},
+            )
 
         # Create result object
         delve_result = DelveResult.from_state(result_state, self.config)
 
-        if self.config.verbose:
-            print(f"✓ Generated {len(delve_result.taxonomy)} categories")
-            print(f"✓ Labeled {len(delve_result.labeled_documents)} documents")
-            print(f"✓ Results saved to {self.config.output_dir}/")
+        self.console.success(f"Generated {len(delve_result.taxonomy)} categories")
+        self.console.success(f"Labeled {len(delve_result.labeled_documents)} documents")
+        self.console.success(f"Results saved to {self.config.output_dir}/")
 
         return delve_result
 
@@ -229,73 +233,68 @@ class Delve:
             ...     days=7
             ... )
         """
-        # 0. Validate API key before starting
+        # 0. Validate API keys before starting
+        # Check for OpenAI key if sample_size > 0 (might need embeddings for classifier)
+        # We check conservatively since we don't know doc count yet
         try:
-            validate_api_key()
+            validate_all_api_keys(needs_openai=(self.config.sample_size > 0))
         except ValueError as e:
-            error_msg = str(e)
-            if self.config.verbose:
-                print(f"\n❌ {error_msg}\n")
+            self.console.error(str(e))
             raise
-        
-        # 1. Create adapter and load data
-        if self.config.verbose:
-            print(f"Loading data from {data}...")
 
+        # 1. Create adapter and load data
         # Filter out configuration parameters that shouldn't be passed to adapters
         config_params = {
             "model", "fast_llm", "sample_size", "batch_size",
-            "output_formats", "output_dir", "verbose", "use_case"
+            "output_formats", "output_dir", "verbose", "verbosity", "use_case"
         }
         filtered_kwargs = {
             k: v for k, v in adapter_kwargs.items()
             if k not in config_params
         }
 
-        adapter = create_adapter(
-            data,
-            text_column=text_column,
-            id_column=id_column,
-            source_type=source_type,
-            **filtered_kwargs,
-        )
+        with self.console.status(f"Loading data from {data}..."):
+            adapter = create_adapter(
+                data,
+                text_column=text_column,
+                id_column=id_column,
+                source_type=source_type,
+                **filtered_kwargs,
+            )
 
-        # Validate and load documents
-        adapter.validate()
-        documents = await adapter.load()
+            # Validate and load documents
+            adapter.validate()
+            documents = await adapter.load()
 
-        if self.config.verbose:
-            print(f"✓ Loaded {len(documents)} documents")
+        self.console.success(f"Loaded {len(documents)} documents")
 
         # 2. Run graph with documents in initial state
-        if self.config.verbose:
-            if self.config.predefined_taxonomy:
-                print(f"Using predefined taxonomy to label documents...")
-            else:
-                print(f"Generating taxonomy...")
+        status_msg = (
+            "Using predefined taxonomy to label documents..."
+            if self.config.predefined_taxonomy
+            else "Generating taxonomy..."
+        )
 
         initial_state = {
             "all_documents": documents,
         }
 
-        result_state = await graph.ainvoke(
-            initial_state,
-            config={"configurable": self.config.to_dict()},
-        )
+        with self.console.status(status_msg):
+            result_state = await graph.ainvoke(
+                initial_state,
+                config={"configurable": self.config.to_dict()},
+            )
 
-        if self.config.verbose:
-            if self.config.predefined_taxonomy:
-                print(f"✓ Document labeling complete")
-            else:
-                print(f"✓ Taxonomy generation complete")
+        if self.config.predefined_taxonomy:
+            self.console.success("Document labeling complete")
+        else:
+            self.console.success("Taxonomy generation complete")
 
         # 3. Create result object
         delve_result = DelveResult.from_state(result_state, self.config)
 
         # 4. Export is handled by save_results node in the graph
-        # Just update export_paths from the result_state if available
-        if self.config.verbose:
-            print(f"✓ Results saved to {self.config.output_dir}/")
+        self.console.success(f"Results saved to {self.config.output_dir}/")
 
         return delve_result
 

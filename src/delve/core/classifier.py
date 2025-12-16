@@ -1,6 +1,6 @@
 """Embedding-based classifier for document labeling at scale."""
 
-from typing import List, Dict, Tuple
+from typing import TYPE_CHECKING, List, Dict, Optional, Tuple
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -9,11 +9,15 @@ from sklearn.metrics import accuracy_score, f1_score
 
 from delve.state import Doc
 
+if TYPE_CHECKING:
+    from delve.console import Console
+
 
 def train_classifier(
     labeled_docs: List[Doc],
     embeddings: List[List[float]],
     taxonomy: List[Dict[str, str]],
+    console: Optional["Console"] = None,
 ) -> Tuple[RandomForestClassifier, Dict[int, str], Dict[str, float]]:
     """Train a RandomForest classifier on labeled documents.
 
@@ -21,6 +25,7 @@ def train_classifier(
         labeled_docs: Documents with LLM-assigned categories
         embeddings: Embeddings for the labeled documents
         taxonomy: List of category dicts with 'id', 'name', 'description'
+        console: Optional Console instance for output
 
     Returns:
         Tuple of (trained model, index_to_category mapping, metrics dict)
@@ -36,7 +41,11 @@ def train_classifier(
         if doc.category not in category_to_index:
             # Skip documents with invalid categories (e.g., "Other")
             available = list(category_to_index.keys())
-            print(f"Warning: Skipping document with category '{doc.category}' not in taxonomy: {available}")
+            if console:
+                console.warning(
+                    f"Skipping document with category '{doc.category}' "
+                    f"not in taxonomy: {available}"
+                )
             continue
         y.append(category_to_index[doc.category])
 

@@ -44,7 +44,7 @@ def _get_category_name_by_id(category_id: str, taxonomy: List[Dict[str, str]]) -
     )
 
 
-def _parse_labels(output_text: str) -> Dict[str, str]:
+def _parse_labels(output_text: str, console=None) -> Dict[str, str]:
     """Parse the generated category ID from LLM output."""
     # Extract category ID from <category_id>N</category_id> tags
     id_matches = re.findall(
@@ -55,11 +55,13 @@ def _parse_labels(output_text: str) -> Dict[str, str]:
 
     if not id_matches:
         # Fallback: try to find any number in the output
-        print(f"Warning: No <category_id> tag found in output: {output_text[:200]}")
+        if console:
+            console.warning(f"No <category_id> tag found in output: {output_text[:200]}")
         return {"category_id": None}
 
     if len(id_matches) > 1:
-        print(f"Warning: Multiple category IDs found: {id_matches}, using first one")
+        if console:
+            console.warning(f"Multiple category IDs found: {id_matches}, using first one")
 
     return {"category_id": id_matches[0]}
 
@@ -115,8 +117,8 @@ async def label_documents(
        - Use classifier to label remaining documents
     3. Return all labeled documents
     """
-
     configuration = Configuration.from_runnable_config(config)
+    console = configuration.get_console()
 
     # Get latest taxonomy
     latest_clusters = None
@@ -132,26 +134,20 @@ async def label_documents(
         raise ValueError("No valid clusters found in state")
 
     # Step 1: Label sampled documents with LLM
-    if configuration.verbose:
-        print(f"\n📋 Labeling {len(state.documents)} sampled documents with LLM...")
-
     labeling_chain = _setup_classification_chain(configuration)
-    batch_size = configuration.batch_size
 
-    # Process in batches
+    # Process documents with progress tracking
     labeled_results = []
-    for i in range(0, len(state.documents), batch_size):
-        batch = state.documents[i : i + batch_size]
-        batch_results = [
-            await labeling_chain.ainvoke(
+    with console.progress(len(state.documents), "Labeling documents with LLM") as advance:
+        for doc in state.documents:
+            result = await labeling_chain.ainvoke(
                 {
                     "content": doc["content"] if isinstance(doc, dict) else doc.content,
                     "taxonomy": _format_taxonomy(latest_clusters),
                 }
             )
-            for doc in batch
-        ]
-        labeled_results.extend(batch_results)
+            labeled_results.append(result)
+            advance()
 
     # Create labeled Doc objects for sampled documents
     # Map category IDs to category names
@@ -160,13 +156,16 @@ async def label_documents(
         category_id = category_result.get("category_id")
 
         if category_id is None:
-            print(f"Warning: No category ID returned for doc {doc['id'] if isinstance(doc, dict) else doc.id}, using 'Other'")
+            console.warning(
+                f"No category ID returned for doc "
+                f"{doc['id'] if isinstance(doc, dict) else doc.id}, using 'Other'"
+            )
             category_name = "Other"
         else:
             try:
                 category_name = _get_category_name_by_id(category_id, latest_clusters)
             except ValueError as e:
-                print(f"Warning: {e}, using 'Other'")
+                console.warning(f"{e}, using 'Other'")
                 category_name = "Other"
 
         llm_labeled_docs.append(Doc(
@@ -183,8 +182,7 @@ async def label_documents(
 
     if sampled_docs >= total_docs:
         # All documents were sampled and labeled by LLM
-        if configuration.verbose:
-            print(f"✓ All {total_docs} documents labeled by LLM")
+        console.success(f"All {total_docs} documents labeled by LLM")
 
         return {
             "documents": llm_labeled_docs,
@@ -193,32 +191,30 @@ async def label_documents(
 
     # Step 3: Train classifier and label remaining documents
     remaining_count = total_docs - sampled_docs
-    if configuration.verbose:
-        print(f"\n🤖 Training classifier on {sampled_docs} LLM-labeled documents...")
-        print(f"   Will classify {remaining_count} remaining documents")
+    console.info(f"Training classifier on {sampled_docs} LLM-labeled documents...")
+    console.info(f"  Will classify {remaining_count} remaining documents")
 
     # Initialize embeddings encoder
     encoder = OpenAIEmbeddings(model=configuration.embedding_model)
 
     # Generate embeddings for LLM-labeled documents (training set)
-    if configuration.verbose:
-        print(f"   Generating embeddings for training set...")
-
-    training_contents = [doc.content for doc in llm_labeled_docs]
-    training_embeddings = await encoder.aembed_documents(training_contents)
+    with console.status("Generating embeddings for training set..."):
+        training_contents = [doc.content for doc in llm_labeled_docs]
+        training_embeddings = await encoder.aembed_documents(training_contents)
 
     # Train classifier
-    if configuration.verbose:
-        print(f"   Training RandomForest classifier...")
+    with console.status("Training RandomForest classifier..."):
+        model, index_to_category, metrics = train_classifier(
+            llm_labeled_docs,
+            training_embeddings,
+            latest_clusters,
+            console=console,
+        )
 
-    model, index_to_category, metrics = train_classifier(
-        llm_labeled_docs,
-        training_embeddings,
-        latest_clusters
+    console.success(
+        f"Classifier trained - Test F1: {metrics['test_f1']:.3f}, "
+        f"Test Accuracy: {metrics['test_accuracy']:.3f}"
     )
-
-    if configuration.verbose:
-        print(f"   ✓ Classifier trained - Test F1: {metrics['test_f1']:.3f}, Test Accuracy: {metrics['test_accuracy']:.3f}")
 
     # Get unlabeled documents (those not in the sample)
     sampled_ids = {doc.id for doc in llm_labeled_docs}
@@ -227,22 +223,21 @@ async def label_documents(
         if (doc["id"] if isinstance(doc, dict) else doc.id) not in sampled_ids
     ]
 
-    if configuration.verbose:
-        print(f"\n🔮 Classifying {len(unlabeled_docs)} documents with trained model...")
-
     # Generate embeddings for unlabeled documents
-    unlabeled_contents = [
-        doc["content"] if isinstance(doc, dict) else doc.content
-        for doc in unlabeled_docs
-    ]
-    unlabeled_embeddings = await encoder.aembed_documents(unlabeled_contents)
+    with console.status(f"Generating embeddings for {len(unlabeled_docs)} documents..."):
+        unlabeled_contents = [
+            doc["content"] if isinstance(doc, dict) else doc.content
+            for doc in unlabeled_docs
+        ]
+        unlabeled_embeddings = await encoder.aembed_documents(unlabeled_contents)
 
     # Predict categories
-    predicted_categories = predict_with_classifier(
-        model,
-        unlabeled_embeddings,
-        index_to_category
-    )
+    with console.status("Classifying with trained model..."):
+        predicted_categories = predict_with_classifier(
+            model,
+            unlabeled_embeddings,
+            index_to_category
+        )
 
     # Create Doc objects for classifier-labeled documents
     classifier_labeled_docs = [
@@ -259,10 +254,9 @@ async def label_documents(
     # Combine all labeled documents
     all_labeled_docs = llm_labeled_docs + classifier_labeled_docs
 
-    if configuration.verbose:
-        print(f"✓ Total labeled: {len(all_labeled_docs)} documents")
-        print(f"   - {len(llm_labeled_docs)} by LLM")
-        print(f"   - {len(classifier_labeled_docs)} by classifier")
+    console.success(f"Total labeled: {len(all_labeled_docs)} documents")
+    console.info(f"  - {len(llm_labeled_docs)} by LLM")
+    console.info(f"  - {len(classifier_labeled_docs)} by classifier")
 
     return {
         "documents": all_labeled_docs,

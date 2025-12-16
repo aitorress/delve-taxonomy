@@ -5,6 +5,54 @@ All notable changes to Delve will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2025-01-16
+
+### Added
+
+- **New Console System**: Unified output management with `Console` class
+- **Verbosity Levels**: Five levels of output control
+  - `SILENT` (SDK default) - No output, ideal for library consumers
+  - `QUIET` (`-q`) - Errors only
+  - `NORMAL` (CLI default) - Spinners and completion checkmarks
+  - `VERBOSE` (`-v`) - Progress bars with throughput-based ETA
+  - `DEBUG` (`-vv`) - Full debug output including warnings
+- **Progress Bars**: Real-time progress tracking with honest ETA based on observed throughput
+- **Rich Integration**: Beautiful terminal output using the `rich` library
+
+### Changed
+
+- **CLI Flags**: Replaced `--verbose/--quiet` with `-q/-v/-vv` pattern (Unix standard)
+- **SDK Default**: Now silent by default (library best practice)
+- **Backward Compatibility**: `verbose=True/False` still works, maps to `NORMAL/SILENT`
+
+### Fixed
+
+- Removed debug print statements from exception handlers
+- Warnings now only show in DEBUG mode (not cluttering normal output)
+- **Early API key validation**: Both Anthropic and OpenAI keys are validated immediately at startup, before any processing begins. Users no longer wait 5+ minutes only to fail on a missing key
+
+### Usage
+
+```bash
+# CLI
+delve run data.csv --text-column text        # Normal (spinners)
+delve run data.csv --text-column text -q     # Quiet (errors only)
+delve run data.csv --text-column text -v     # Verbose (progress bars)
+delve run data.csv --text-column text -vv    # Debug (everything)
+```
+
+```python
+# SDK
+from delve import Delve, Verbosity
+
+delve = Delve()  # Silent by default
+delve = Delve(verbosity=Verbosity.NORMAL)    # With output
+delve = Delve(verbosity=Verbosity.VERBOSE)   # With progress bars
+delve = Delve(verbose=True)                  # Backward compat
+```
+
+---
+
 ## [0.1.0] - 2024-01-15
 
 ### Initial Release

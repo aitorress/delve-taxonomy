@@ -209,7 +209,7 @@ class Delve:
         """Synchronous wrapper for run().
 
         This is a convenience method for users who don't want to deal
-        with async/await syntax.
+        with async/await syntax. Works in Jupyter/Colab environments.
 
         Args:
             data: Data source (file path, URI, or DataFrame)
@@ -226,12 +226,44 @@ class Delve:
             >>> result = delve.run_sync("data.csv", text_column="text")
             >>> print(result.taxonomy)
         """
-        return asyncio.run(
-            self.run(
-                data,
-                text_column=text_column,
-                id_column=id_column,
-                source_type=source_type,
-                **adapter_kwargs,
+        # Check if we're in a Jupyter/Colab environment with existing event loop
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No event loop running, use asyncio.run()
+            return asyncio.run(
+                self.run(
+                    data,
+                    text_column=text_column,
+                    id_column=id_column,
+                    source_type=source_type,
+                    **adapter_kwargs,
+                )
             )
-        )
+        else:
+            # Event loop is already running (Jupyter/Colab)
+            # Try to use nest_asyncio to allow nested event loops
+            try:
+                import nest_asyncio
+                nest_asyncio.apply()
+            except ImportError:
+                raise RuntimeError(
+                    "Cannot use run_sync() in Jupyter/Colab without nest_asyncio. "
+                    "Install it with: !pip install nest-asyncio\n"
+                    "Then import and apply it at the top of your notebook:\n"
+                    "  import nest_asyncio\n"
+                    "  nest_asyncio.apply()\n"
+                    "Alternatively, use the async version:\n"
+                    "  result = await delve_client.run(...)"
+                )
+
+            # nest_asyncio is available, run normally
+            return asyncio.run(
+                self.run(
+                    data,
+                    text_column=text_column,
+                    id_column=id_column,
+                    source_type=source_type,
+                    **adapter_kwargs,
+                )
+            )

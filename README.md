@@ -6,35 +6,54 @@ Delve is a production-ready SDK and CLI for automatically generating taxonomies 
 
 ## Quick Start
 
+### Installation
+
 ```bash
-# Install
 pip install delve-taxonomy
 
-# Set API key
+# Set API keys
 export ANTHROPIC_API_KEY="your-key-here"
+export OPENAI_API_KEY="your-key-here"  # Required for classifier embeddings
+```
 
-# Run (with progress spinners)
+### CLI
+
+```bash
+# Basic usage (shows progress spinners)
 delve run data.csv --text-column text
 
 # With progress bars and ETA
 delve run data.csv --text-column text -v
+
+# Quiet mode (errors only)
+delve run data.csv --text-column text -q
+
+# JSON with nested data
+delve run data.json --json-path "$.messages[*].content"
 ```
 
-Or use the Python SDK:
+### Python SDK
 
 ```python
 from delve import Delve, Verbosity
 
-# Silent by default (library best practice)
+# Initialize client (silent by default - library best practice)
 delve = Delve()
-result = delve.run_sync("data.csv", text_column="text")
 
-# With progress output
+# Or with progress output
 delve = Delve(verbosity=Verbosity.NORMAL)
 
+# Run taxonomy generation
+result = delve.run_sync("data.csv", text_column="text")
+
 # Access results
+print(f"Generated {len(result.taxonomy)} categories")
 for category in result.taxonomy:
-    print(f"- {category.name}: {category.description}")
+    print(f"  - {category.name}: {category.description}")
+
+# Access labeled documents
+for doc in result.labeled_documents[:5]:
+    print(f"  [{doc.category}] {doc.content[:50]}...")
 ```
 
 ## Features
@@ -47,7 +66,8 @@ for category in result.taxonomy:
 ## Requirements
 
 - Python 3.9+
-- Anthropic API key
+- Anthropic API key (for taxonomy generation)
+- OpenAI API key (for classifier embeddings when sample_size > 0)
 
 ## Documentation
 

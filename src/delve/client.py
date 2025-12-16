@@ -12,7 +12,7 @@ from delve.configuration import Configuration
 from delve.result import DelveResult
 from delve.adapters import create_adapter
 from delve.graph import graph
-from delve.state import State
+from delve.state import State, Doc
 from delve.utils import validate_api_key
 
 
@@ -84,6 +84,107 @@ class Delve:
             embedding_model=embedding_model,
             classifier_confidence_threshold=classifier_confidence_threshold,
         )
+
+    async def run_with_docs(
+        self,
+        docs: List[Doc],
+    ) -> DelveResult:
+        """Run taxonomy generation on pre-created Doc objects.
+
+        Use this method when you already have Doc objects (e.g., for testing
+        or when creating docs programmatically).
+
+        Args:
+            docs: List of Doc objects to process
+
+        Returns:
+            DelveResult: Results object with taxonomy and labeled documents
+
+        Examples:
+            >>> from delve import Delve, Doc
+            >>> docs = [
+            ...     Doc(id="1", content="Fix authentication bug"),
+            ...     Doc(id="2", content="Add dark mode feature"),
+            ... ]
+            >>> delve = Delve(use_case="Categorize software issues")
+            >>> result = await delve.run_with_docs(docs)
+        """
+        # Validate API key
+        try:
+            validate_api_key()
+        except ValueError as e:
+            error_msg = str(e)
+            if self.config.verbose:
+                print(f"\n❌ {error_msg}\n")
+            raise
+
+        if self.config.verbose:
+            print(f"Processing {len(docs)} documents...")
+
+        # Create initial state with docs
+        initial_state = State(all_documents=docs)
+
+        # Run the graph
+        if self.config.verbose:
+            print("Running taxonomy generation...")
+
+        result_state = await graph.ainvoke(
+            initial_state,
+            config={"configurable": self.config.to_dict()},
+        )
+
+        # Create result object
+        delve_result = DelveResult.from_state(result_state, self.config)
+
+        if self.config.verbose:
+            print(f"✓ Generated {len(delve_result.taxonomy)} categories")
+            print(f"✓ Labeled {len(delve_result.labeled_documents)} documents")
+            print(f"✓ Results saved to {self.config.output_dir}/")
+
+        return delve_result
+
+    def run_with_docs_sync(
+        self,
+        docs: List[Doc],
+    ) -> DelveResult:
+        """Synchronous wrapper for run_with_docs().
+
+        Args:
+            docs: List of Doc objects to process
+
+        Returns:
+            DelveResult: Results object with taxonomy and labeled documents
+
+        Examples:
+            >>> from delve import Delve, Doc
+            >>> docs = [Doc(id="1", content="Fix bug"), ...]
+            >>> delve = Delve()
+            >>> result = delve.run_with_docs_sync(docs)
+        """
+        # Check if we're in a Jupyter/Colab environment with existing event loop
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No event loop running, use asyncio.run()
+            return asyncio.run(self.run_with_docs(docs))
+        else:
+            # Event loop is already running (Jupyter/Colab)
+            try:
+                import nest_asyncio
+                nest_asyncio.apply()
+            except ImportError:
+                raise RuntimeError(
+                    "Cannot use run_with_docs_sync() in Jupyter/Colab without nest_asyncio. "
+                    "Install it with: !pip install nest-asyncio\n"
+                    "Then import and apply it at the top of your notebook:\n"
+                    "  import nest_asyncio\n"
+                    "  nest_asyncio.apply()\n"
+                    "Alternatively, use the async version:\n"
+                    "  result = await delve_client.run_with_docs(...)"
+                )
+
+            # nest_asyncio is available, run normally
+            return asyncio.run(self.run_with_docs(docs))
 
     async def run(
         self,

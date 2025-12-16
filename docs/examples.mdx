@@ -4,111 +4,30 @@ description: 'Working code examples for common Delve use cases'
 ---
 
 <Info>
-  All examples are available in the `/examples` directory of the repository. You can run them directly with sample data.
+  Working examples are available in the `/examples` directory of the repository.
 </Info>
 
-## Basic CSV Example
-
-The simplest way to use Delve with a CSV file.
+## Basic Usage
 
 ```python
 from delve import Delve
 
-# Initialize with default settings
-delve = Delve(
-    model="anthropic/claude-3-5-sonnet-20241022",
-    sample_size=100,
-    output_dir="./results"
-)
+delve = Delve(sample_size=100, output_dir="./results")
+result = delve.run_sync("data.csv", text_column="text")
 
-# Run taxonomy generation
-result = delve.run_sync(
-    "sample_data.csv",
-    text_column="text"
-)
-
-# Display results
-print(f"Generated {len(result.taxonomy)} categories")
-
+# Access results
 for category in result.taxonomy:
-    # Get documents for this category
-    category_docs = [
-        doc for doc in result.labeled_documents
-        if doc.category == category.name
-    ]
-    print(f"\n{category.name}")
-    print(f"  Description: {category.description}")
-    print(f"  Documents: {len(category_docs)}")
+    print(f"{category.name}: {category.description}")
 ```
 
-<Tip>
-  Run this example: `python examples/basic_csv_example.py`
-</Tip>
-
-## JSON Example
-
-Process JSON data with nested structures using JSONPath.
-
-<Tabs>
-  <Tab title="Simple JSON">
-    ```python
-    from delve import Delve
-
-    delve = Delve(output_dir="./json_results")
-
-    # Simple JSON with text field
-    result = delve.run_sync(
-        "data.json",
-        text_field="content"
-    )
-    ```
-  </Tab>
-
-  <Tab title="Nested JSON">
-    ```python
-    from delve import Delve
-
-    delve = Delve(output_dir="./json_results")
-
-    # Use JSONPath for nested data
-    result = delve.run_sync(
-        "data.json",
-        json_path="$.messages[*].content"
-    )
-
-    print(f"Processed {len(result.labeled_documents)} documents")
-    ```
-  </Tab>
-
-  <Tab title="JSONL">
-    ```python
-    from delve import Delve
-
-    delve = Delve(output_dir="./jsonl_results")
-
-    # Newline-delimited JSON
-    result = delve.run_sync(
-        "data.jsonl",
-        source_type="jsonl"
-    )
-    ```
-  </Tab>
-</Tabs>
-
-## DataFrame Example
-
-Work directly with pandas DataFrames for in-memory processing.
+## Working with DataFrames
 
 ```python
 import pandas as pd
 from delve import Delve
 
-# Load your DataFrame
-df = pd.read_csv("data.csv")
-
-# Or create one
 df = pd.DataFrame({
-    "id": ["doc1", "doc2", "doc3"],
+    "id": ["1", "2", "3"],
     "text": [
         "How do I reset my password?",
         "What are your pricing plans?",
@@ -116,375 +35,117 @@ df = pd.DataFrame({
     ]
 })
 
-# Run Delve on DataFrame
-delve = Delve(
-    sample_size=150,
-    use_case="Categorize customer feedback by topic"
-)
+delve = Delve(use_case="Categorize customer feedback")
+result = delve.run_sync(df, text_column="text", id_column="id")
 
-result = delve.run_sync(
-    df,
-    text_column="text",
-    id_column="id"
-)
-
-# Create results DataFrame
+# Convert results back to DataFrame
 results_df = pd.DataFrame([
-    {
-        "id": doc.id,
-        "text": doc.text,
-        "category": doc.category,
-        "explanation": doc.explanation
-    }
+    {"id": doc.id, "category": doc.category, "explanation": doc.explanation}
     for doc in result.labeled_documents
 ])
-
-# Analyze
 print(results_df['category'].value_counts())
 ```
 
-<Tip>
-  Run this example: `python examples/dataframe_example.py`
-</Tip>
+## Using Predefined Taxonomy
 
-## Async API Example
+Skip taxonomy discovery and use your own categories:
 
-Use async/await for non-blocking operations.
+```python
+from delve import Delve
+
+# Define your taxonomy
+taxonomy = [
+    {"id": "1", "name": "Bug", "description": "Bug reports and issues"},
+    {"id": "2", "name": "Feature", "description": "Feature requests"},
+    {"id": "3", "name": "Question", "description": "General questions"},
+]
+
+delve = Delve(predefined_taxonomy=taxonomy)
+result = delve.run_sync("issues.csv", text_column="description")
+```
+
+## Processing Documents Directly
+
+Use `Doc` objects for programmatic input:
+
+```python
+from delve import Delve, Doc
+
+docs = [
+    Doc(id="1", content="Fix authentication bug in login"),
+    Doc(id="2", content="Add dark mode feature"),
+    Doc(id="3", content="How do I export data?"),
+]
+
+delve = Delve(use_case="Categorize software issues")
+result = delve.run_with_docs_sync(docs)
+```
+
+## Async API
+
+For async applications:
 
 ```python
 import asyncio
 from delve import Delve
 
 async def main():
-    delve = Delve(
-        use_case="Categorize customer feedback into product areas",
-        sample_size=150,
-        output_dir="./async_results"
-    )
-
-    # Use async API
-    result = await delve.run(
-        "sample_data.csv",
-        text_column="text"
-    )
-
+    delve = Delve(sample_size=150)
+    result = await delve.run("data.csv", text_column="text")
     print(f"Generated {len(result.taxonomy)} categories")
 
-    # Process results
-    for category in result.taxonomy:
-        print(f"- {category.name}: {category.description}")
-
-# Run async code
 asyncio.run(main())
 ```
 
-## Custom Configuration Example
-
-Customize Delve for your specific use case.
-
-```python
-from delve import Delve
-
-# Configure with custom settings
-delve = Delve(
-    model="anthropic/claude-3-5-sonnet-20241022",
-    fast_llm="anthropic/claude-3-haiku-20240307",
-    sample_size=200,
-    batch_size=100,
-    use_case="Analyze support tickets to identify common issues and urgency levels",
-    output_dir="./custom_results",
-    output_formats=["json", "markdown"],  # Only JSON and Markdown
-    verbose=True
-)
-
-result = delve.run_sync(
-    "support_tickets.csv",
-    text_column="description",
-    id_column="ticket_id"
-)
-
-print("Custom taxonomy generated successfully!")
-```
-
-## LangSmith Example
-
-Analyze LangSmith project runs to categorize LLM interactions.
-
-```python
-from delve import Delve
-import os
-
-delve = Delve(
-    sample_size=100,
-    output_dir="./langsmith_results"
-)
-
-# Process LangSmith runs
-result = delve.run_sync(
-    "langsmith://my-project",
-    api_key=os.getenv("LANGSMITH_API_KEY"),
-    days=7,  # Look back 7 days
-    max_runs=1000
-)
-
-print(f"Analyzed {len(result.labeled_documents)} LangSmith runs")
-print(f"Generated {len(result.taxonomy)} categories")
-```
-
-## Large Dataset Example
-
-Efficiently process large datasets with sampling.
-
-```python
-import pandas as pd
-from delve import Delve
-
-# Create large dataset
-large_df = pd.DataFrame({
-    "id": [f"doc{i}" for i in range(10000)],
-    "text": [f"Sample document text {i}" for i in range(10000)]
-})
-
-# Process with larger sample
-delve = Delve(
-    sample_size=500,  # Sample 500 from 10,000
-    batch_size=50,    # Smaller batches for precision
-    output_dir="./large_results"
-)
-
-result = delve.run_sync(
-    large_df,
-    text_column="text",
-    id_column="id"
-)
-
-print(f"Sampled: 500 from 10,000 documents")
-print(f"Generated: {len(result.taxonomy)} categories")
-```
-
-<Info>
-  Delve automatically samples large datasets to ensure efficient processing while maintaining representative coverage.
-</Info>
-
-## Programmatic Result Access
-
-Access and analyze results programmatically.
+## Analyzing Results
 
 ```python
 from delve import Delve
 from collections import Counter
 
-delve = Delve(sample_size=100)
 result = delve.run_sync("data.csv", text_column="text")
 
-# Access taxonomy
-print("Categories:")
-for category in result.taxonomy:
-    print(f"- {category.name}: {category.description}")
-
-# Count documents per category
-distribution = Counter(
-    doc.category for doc in result.labeled_documents
-)
-
-print("\nDistribution:")
+# Category distribution
+distribution = Counter(doc.category for doc in result.labeled_documents)
 for category, count in distribution.most_common():
-    percentage = (count / len(result.labeled_documents)) * 100
-    print(f"  {category}: {count} ({percentage:.1f}%)")
+    pct = (count / len(result.labeled_documents)) * 100
+    print(f"{category}: {count} ({pct:.1f}%)")
 
-# Filter documents by category
-tech_support_docs = [
-    doc for doc in result.labeled_documents
-    if doc.category == "Technical Support"
-]
-
-print(f"\nTechnical Support documents: {len(tech_support_docs)}")
+# Filter by category
+bugs = [doc for doc in result.labeled_documents if doc.category == "Bug"]
 
 # Access export paths
-print("\nExport paths:")
-for format_name, path in result.export_paths.items():
-    print(f"  {format_name}: {path}")
+print(result.export_paths['taxonomy'])  # Path to taxonomy.json
 ```
 
-## CLI Examples
+## CLI Quick Examples
 
-Use the command-line interface for quick analysis.
+```bash
+# Basic CSV
+delve run data.csv --text-column message
 
-<Tabs>
-  <Tab title="CSV">
-    ```bash
-    # Basic CSV
-    delve run data.csv --text-column conversation
+# JSON with nested path
+delve run data.json --json-path "$.items[*].content"
 
-    # With custom sample size
-    delve run data.csv --text-column text --sample-size 200
+# LangSmith project
+delve run langsmith://my-project --langsmith-key $LANGSMITH_API_KEY
 
-    # Custom output directory
-    delve run data.csv --text-column text --output-dir ./my-results
-    ```
-  </Tab>
-
-  <Tab title="JSON">
-    ```bash
-    # Simple JSON
-    delve run data.json --source-type json
-
-    # Nested JSON with JSONPath
-    delve run messages.json --json-path "$.conversations[*].text"
-
-    # JSONL
-    delve run data.jsonl --source-type jsonl
-    ```
-  </Tab>
-
-  <Tab title="LangSmith">
-    ```bash
-    # Recent runs
-    delve run langsmith://my-project --langsmith-key $LANGSMITH_API_KEY --days 7
-
-    # With custom sample size
-    delve run langsmith://my-project \
-      --langsmith-key $LANGSMITH_API_KEY \
-      --days 14 \
-      --sample-size 200
-    ```
-  </Tab>
-
-  <Tab title="Advanced">
-    ```bash
-    # Full custom configuration
-    delve run data.csv \
-      --text-column feedback \
-      --id-column ticket_id \
-      --model anthropic/claude-3-5-sonnet-20241022 \
-      --sample-size 300 \
-      --batch-size 50 \
-      --output-dir ./results \
-      --output-format json \
-      --output-format csv \
-      --use-case "Categorize support tickets by issue type" \
-      --verbose
-    ```
-  </Tab>
-</Tabs>
-
-## Error Handling Example
-
-Handle errors gracefully in production code.
-
-```python
-from delve import Delve
-import logging
-
-logging.basicConfig(level=logging.INFO)
-
-def process_with_error_handling(file_path: str):
-    try:
-        delve = Delve()
-        result = delve.run_sync(
-            file_path,
-            text_column="text"
-        )
-
-        logging.info(f"Success! Generated {len(result.taxonomy)} categories")
-        return result
-
-    except ValueError as e:
-        # Configuration errors (missing API key, invalid params)
-        logging.error(f"Configuration error: {e}")
-        return None
-
-    except FileNotFoundError as e:
-        # File doesn't exist
-        logging.error(f"File not found: {e}")
-        return None
-
-    except Exception as e:
-        # Other errors
-        logging.error(f"Unexpected error: {e}")
-        return None
-
-# Use it
-result = process_with_error_handling("data.csv")
-if result:
-    print("Processing successful!")
-```
-
-## Multiple Files Example
-
-Process multiple files in sequence.
-
-```python
-from delve import Delve
-from pathlib import Path
-
-# Files to process
-files = [
-    "customer_feedback.csv",
-    "support_tickets.csv",
-    "survey_responses.csv"
-]
-
-delve = Delve(sample_size=150)
-
-for file in files:
-    print(f"\nProcessing {file}...")
-
-    output_dir = f"./results/{Path(file).stem}"
-    delve.config.output_dir = output_dir
-
-    result = delve.run_sync(file, text_column="text")
-
-    print(f"  ✓ Generated {len(result.taxonomy)} categories")
-    print(f"  ✓ Saved to {output_dir}")
+# Custom configuration
+delve run data.csv --text-column text --sample-size 200 --use-case "Categorize support tickets"
 ```
 
 ## Running Examples
 
-All examples are in the `/examples` directory:
+```bash
+# Clone and setup
+git clone https://github.com/anthropics/delve.git
+cd delve
+pip install -e .
 
-<Steps>
-  <Step title="Clone the repository">
-    ```bash
-    git clone https://github.com/anthropics/delve.git
-    cd delve
-    ```
-  </Step>
+# Set API key
+export ANTHROPIC_API_KEY="your-key"
 
-  <Step title="Install dependencies">
-    ```bash
-    # Using uv
-    uv venv && uv pip install -e .
-
-    # Or using pip
-    pip install -e .
-    ```
-  </Step>
-
-  <Step title="Set API key">
-    ```bash
-    export ANTHROPIC_API_KEY="your-key-here"
-    ```
-  </Step>
-
-  <Step title="Run examples">
-    ```bash
-    cd examples
-    python basic_csv_example.py
-    python json_example.py
-    python dataframe_example.py
-    python advanced_usage.py
-    ```
-  </Step>
-</Steps>
-
-## Next Steps
-
-<CardGroup cols={2}>
-  <Card title="CLI Reference" icon="terminal" href="/cli-reference">
-    Learn all CLI commands
-  </Card>
-  <Card title="SDK Reference" icon="code" href="/sdk-reference">
-    Explore the Python SDK
-  </Card>
-</CardGroup>
+# Run examples
+cd examples
+python basic_csv_example.py
+```

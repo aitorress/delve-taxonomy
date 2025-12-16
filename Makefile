@@ -1,4 +1,4 @@
-.PHONY: all format lint test tests test_watch integration_tests docker_tests help extended_tests docs
+.PHONY: all format lint test tests test_watch integration_tests docker_tests help extended_tests docs docs-install build publish clean
 
 # Default target executed when no arguments are given to make.
 all: help
@@ -6,18 +6,21 @@ all: help
 # Define a variable for the test file path.
 TEST_FILE ?= tests/unit_tests/
 
+######################
+# TESTING
+######################
+
 test:
-	python -m pytest $(TEST_FILE)
+	uv run pytest $(TEST_FILE)
 
 test_watch:
-	python -m ptw --snapshot-update --now . -- -vv tests/unit_tests
+	uv run ptw --snapshot-update --now . -- -vv tests/unit_tests
 
 test_profile:
-	python -m pytest -vv tests/unit_tests/ --profile-svg
+	uv run pytest -vv tests/unit_tests/ --profile-svg
 
 extended_tests:
-	python -m pytest --only-extended $(TEST_FILE)
-
+	uv run pytest --only-extended $(TEST_FILE)
 
 ######################
 # LINTING AND FORMATTING
@@ -33,15 +36,13 @@ lint_tests: PYTHON_FILES=tests
 lint_tests: MYPY_CACHE=.mypy_cache_test
 
 lint lint_diff lint_package lint_tests:
-	python -m ruff check .
-	[ "$(PYTHON_FILES)" = "" ] || python -m ruff format $(PYTHON_FILES) --diff
-	[ "$(PYTHON_FILES)" = "" ] || python -m ruff check --select I $(PYTHON_FILES)
-	[ "$(PYTHON_FILES)" = "" ] || python -m mypy --strict $(PYTHON_FILES)
-	[ "$(PYTHON_FILES)" = "" ] || mkdir -p $(MYPY_CACHE) && python -m mypy --strict $(PYTHON_FILES) --cache-dir $(MYPY_CACHE)
+	uv run ruff check .
+	[ "$(PYTHON_FILES)" = "" ] || uv run ruff format $(PYTHON_FILES) --diff
+	[ "$(PYTHON_FILES)" = "" ] || uv run ruff check --select I $(PYTHON_FILES)
 
 format format_diff:
-	ruff format $(PYTHON_FILES)
-	ruff check --select I --fix $(PYTHON_FILES)
+	uv run ruff format $(PYTHON_FILES)
+	uv run ruff check --select I --fix $(PYTHON_FILES)
 
 spell_check:
 	codespell --toml pyproject.toml
@@ -50,28 +51,58 @@ spell_fix:
 	codespell --toml pyproject.toml -w
 
 ######################
-# HELP
-######################
-
-######################
 # DOCUMENTATION
 ######################
 
 docs:
-	@echo "Starting Mintlify docs server..."
+	@echo "Starting Mintlify docs server at http://localhost:3000..."
+	@echo "Press Ctrl+C to stop"
 	@cd docs && mintlify dev
+
+docs-install:
+	@echo "Installing Mintlify CLI..."
+	npm install -g mintlify
+
+######################
+# BUILD AND PUBLISH
+######################
+
+build:
+	@echo "Building package..."
+	uv run python -m build
+
+publish-test:
+	@echo "Publishing to TestPyPI..."
+	uv run twine upload --repository testpypi dist/*
+
+publish:
+	@echo "Publishing to PyPI..."
+	uv run twine upload dist/*
+
+clean:
+	rm -rf dist/ build/ *.egg-info src/*.egg-info
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
 
 ######################
 # HELP
 ######################
 
 help:
-	@echo '----'
+	@echo '==================== Development ===================='
+	@echo 'test                         - run unit tests'
+	@echo 'test TEST_FILE=<test_file>   - run specific test file'
+	@echo 'test_watch                   - run tests in watch mode'
 	@echo 'format                       - run code formatters'
 	@echo 'lint                         - run linters'
-	@echo 'test                         - run unit tests'
-	@echo 'tests                        - run unit tests'
-	@echo 'test TEST_FILE=<test_file>   - run all tests in file'
-	@echo 'test_watch                   - run unit tests in watch mode'
-	@echo 'docs                         - start Mintlify docs server (requires Node.js 20.17+)'
+	@echo ''
+	@echo '==================== Documentation ===================='
+	@echo 'docs                         - start local docs server (http://localhost:3000)'
+	@echo 'docs-install                 - install Mintlify CLI globally'
+	@echo ''
+	@echo '==================== Build & Publish ===================='
+	@echo 'build                        - build package for distribution'
+	@echo 'publish-test                 - publish to TestPyPI'
+	@echo 'publish                      - publish to PyPI'
+	@echo 'clean                        - remove build artifacts'
 

@@ -8,7 +8,7 @@ Delve is a production-ready SDK and CLI for automatically generating taxonomies 
 
 ```bash
 # Install
-pip install delve
+pip install delve-taxonomy
 
 # Set API key
 export ANTHROPIC_API_KEY="your-key-here"

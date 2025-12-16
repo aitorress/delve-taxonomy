@@ -169,6 +169,7 @@ output*/
 jira_*.csv
 temp_*.csv
 
-# Personal guides (not for public repo)
+# Personal guides and test scripts (not for public repo)
 PYPI_PUBLICATION_GUIDE.md
 test_installation.py
+test_before_upload.sh

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from pathlib import Path
-from typing import Optional, List, Union, Dict
+from typing import Optional, List, Union, Dict, Any
 
 import pandas as pd
 
@@ -116,6 +117,9 @@ class Delve:
             >>> delve = Delve(use_case="Categorize software issues")
             >>> result = await delve.run_with_docs(docs)
         """
+        # Start timing
+        start_time = time.time()
+
         # Validate API keys early
         # OpenAI key needed if sample_size > 0 (classifier uses embeddings)
         needs_openai = self.config.sample_size > 0 and len(docs) > self.config.sample_size
@@ -135,8 +139,24 @@ class Delve:
                 config={"configurable": self.config.to_dict()},
             )
 
+        # Calculate run duration
+        run_duration = time.time() - start_time
+
+        # Source info for Doc-based input
+        source_info: Dict[str, Any] = {
+            "type": "docs",
+            "path": None,
+            "text_column": None,
+            "id_column": None,
+        }
+
         # Create result object
-        delve_result = DelveResult.from_state(result_state, self.config)
+        delve_result = DelveResult.from_state(
+            result_state,
+            self.config,
+            run_duration=run_duration,
+            source_info=source_info,
+        )
 
         self.console.success(f"Generated {len(delve_result.taxonomy)} categories")
         self.console.success(f"Labeled {len(delve_result.labeled_documents)} documents")
@@ -230,6 +250,9 @@ class Delve:
             ...     days=7
             ... )
         """
+        # Start timing
+        start_time = time.time()
+
         # Debug: Show full configuration
         self.console.debug("=" * 50)
         self.console.debug("Delve Configuration:")
@@ -299,8 +322,24 @@ class Delve:
         else:
             self.console.success("Taxonomy generation complete")
 
-        # 3. Create result object
-        delve_result = DelveResult.from_state(result_state, self.config)
+        # Calculate run duration
+        run_duration = time.time() - start_time
+
+        # Build source info
+        source_info: Dict[str, Any] = {
+            "type": source_type or "auto",
+            "path": str(data) if not isinstance(data, pd.DataFrame) else None,
+            "text_column": text_column,
+            "id_column": id_column,
+        }
+
+        # 3. Create result object with extra metadata
+        delve_result = DelveResult.from_state(
+            result_state,
+            self.config,
+            run_duration=run_duration,
+            source_info=source_info,
+        )
 
         # 4. Export is handled by save_results node in the graph
         self.console.success(f"Results saved to {self.config.output_dir}/")

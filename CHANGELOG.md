@@ -5,6 +5,39 @@ All notable changes to Delve will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2025-01-16
+
+### Added
+
+- **Enhanced metadata in results**: `result.metadata` now includes comprehensive run information:
+  - **Timing**: `run_duration_seconds` - total processing time
+  - **Category distribution**: `category_counts` - document count per category
+  - **Classifier metrics**: `classifier_metrics` with train/test accuracy and F1 scores
+  - **Labeling breakdown**: `llm_labeled_count`, `classifier_labeled_count`
+  - **Source info**: `source` with type, path, and column names
+  - **Quality tracking**: `skipped_document_count`, `warnings` list
+
+### Example
+
+```python
+result = delve.run_sync("data.csv", text_column="text")
+print(result.metadata)
+# {
+#     "num_documents": 5000,
+#     "num_categories": 10,
+#     "run_duration_seconds": 145.32,
+#     "category_counts": {"Bug Fix": 1250, "Feature": 890, ...},
+#     "classifier_metrics": {"test_f1": 0.847, "test_accuracy": 0.85, ...},
+#     "llm_labeled_count": 100,
+#     "classifier_labeled_count": 4900,
+#     "source": {"type": "csv", "path": "data.csv", "text_column": "text"},
+#     "warnings": [],
+#     ...
+# }
+```
+
+---
+
 ## [0.1.6] - 2025-01-16
 
 ### Added

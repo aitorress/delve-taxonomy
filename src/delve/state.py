@@ -50,3 +50,10 @@ class State(InputState, OutputState):
     use_case: str = field(default="")
     is_last_step: IsLastStep = field(default=False)
 
+    # Metadata tracking
+    classifier_metrics: Optional[Dict[str, float]] = None
+    llm_labeled_count: int = 0
+    classifier_labeled_count: int = 0
+    skipped_document_count: int = 0
+    warnings: List[str] = field(default_factory=list)
+

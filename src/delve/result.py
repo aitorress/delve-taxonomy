@@ -41,33 +41,53 @@ class DelveResult:
     export_paths: Dict[str, Path] = field(default_factory=dict)
 
     @classmethod
-    def from_state(cls, state: Union[State, Dict[str, Any]], config: Configuration) -> DelveResult:
+    def from_state(
+        cls,
+        state: Union[State, Dict[str, Any]],
+        config: Configuration,
+        run_duration: float = 0.0,
+        source_info: Dict[str, Any] = None,
+    ) -> DelveResult:
         """Create result from graph state.
 
         Args:
             state: The final state from graph execution (State dataclass or dict)
             config: Configuration used for the run
+            run_duration: Total run time in seconds
+            source_info: Information about the data source
 
         Returns:
             DelveResult instance
         """
+        from collections import Counter
+
         # Handle both dict (from LangGraph) and State object
         if isinstance(state, dict):
             clusters = state.get("clusters", [])
             documents_raw = state.get("documents", [])
             status = state.get("status", [])
+            classifier_metrics = state.get("classifier_metrics")
+            llm_labeled_count = state.get("llm_labeled_count", 0)
+            classifier_labeled_count = state.get("classifier_labeled_count", 0)
+            skipped_document_count = state.get("skipped_document_count", 0)
+            warnings = state.get("warnings", [])
         else:
             # State object
             clusters = state.clusters if state.clusters else []
             documents_raw = state.documents if state.documents else []
             status = state.status if state.status else []
-        
+            classifier_metrics = getattr(state, "classifier_metrics", None)
+            llm_labeled_count = getattr(state, "llm_labeled_count", 0)
+            classifier_labeled_count = getattr(state, "classifier_labeled_count", 0)
+            skipped_document_count = getattr(state, "skipped_document_count", 0)
+            warnings = getattr(state, "warnings", []) or []
+
         # Extract final taxonomy from clusters
         # clusters is a list of lists of dicts, get the last list (most recent taxonomy)
         final_clusters = []
         if clusters and len(clusters) > 0:
             final_clusters = clusters[-1]
-        
+
         taxonomy = [
             TaxonomyCategory(
                 id=str(c.get("id", "")),
@@ -94,15 +114,49 @@ class DelveResult:
                 # Already a Doc object
                 documents.append(doc)
 
-        # Create metadata
-        metadata = {
+        # Calculate category distribution
+        category_counts = dict(Counter(
+            doc.category for doc in documents if doc.category
+        ))
+
+        # Build enhanced metadata
+        metadata: Dict[str, Any] = {
+            # Basic info
             "num_documents": len(documents),
             "num_categories": len(taxonomy),
             "sample_size": config.sample_size,
             "batch_size": config.batch_size,
             "model": config.model,
+            "fast_llm": config.fast_llm,
             "status_log": status if status else [],
+
+            # Timing
+            "run_duration_seconds": round(run_duration, 2),
+
+            # Category distribution
+            "category_counts": category_counts,
+
+            # Labeling breakdown
+            "llm_labeled_count": llm_labeled_count,
+            "classifier_labeled_count": classifier_labeled_count,
+            "skipped_document_count": skipped_document_count,
+
+            # Quality info
+            "warnings": warnings,
         }
+
+        # Add classifier metrics if available
+        if classifier_metrics:
+            metadata["classifier_metrics"] = {
+                "train_accuracy": round(classifier_metrics.get("train_accuracy", 0), 4),
+                "test_accuracy": round(classifier_metrics.get("test_accuracy", 0), 4),
+                "train_f1": round(classifier_metrics.get("train_f1", 0), 4),
+                "test_f1": round(classifier_metrics.get("test_f1", 0), 4),
+            }
+
+        # Add source info if provided
+        if source_info:
+            metadata["source"] = source_info
 
         return cls(
             taxonomy=taxonomy,

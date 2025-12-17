@@ -162,21 +162,27 @@ async def label_documents(
     # Create labeled Doc objects for sampled documents
     # Map category IDs to category names
     llm_labeled_docs = []
+    warnings_list = []
+    other_count = 0
+
     for doc, category_result in zip(state.documents, labeled_results):
         category_id = category_result.get("category_id")
 
         if category_id is None:
-            console.warning(
-                f"No category ID returned for doc "
-                f"{doc['id'] if isinstance(doc, dict) else doc.id}, using 'Other'"
-            )
+            warning_msg = f"No category ID returned for doc {doc['id'] if isinstance(doc, dict) else doc.id}, using 'Other'"
+            console.warning(warning_msg)
+            warnings_list.append(warning_msg)
             category_name = "Other"
+            other_count += 1
         else:
             try:
                 category_name = _get_category_name_by_id(category_id, latest_clusters)
             except ValueError as e:
-                console.warning(f"{e}, using 'Other'")
+                warning_msg = f"{e}, using 'Other'"
+                console.warning(warning_msg)
+                warnings_list.append(warning_msg)
                 category_name = "Other"
+                other_count += 1
 
         llm_labeled_docs.append(Doc(
             id=doc["id"] if isinstance(doc, dict) else doc.id,
@@ -197,6 +203,10 @@ async def label_documents(
         return {
             "documents": llm_labeled_docs,
             "status": [f"All {total_docs} documents labeled by LLM"],
+            "llm_labeled_count": len(llm_labeled_docs),
+            "classifier_labeled_count": 0,
+            "skipped_document_count": other_count,
+            "warnings": warnings_list,
         }
 
     # Step 3: Train classifier and label remaining documents
@@ -279,4 +289,9 @@ async def label_documents(
             f"Classified {len(classifier_labeled_docs)} documents with model",
             f"Total: {len(all_labeled_docs)} documents labeled"
         ],
+        "classifier_metrics": metrics,
+        "llm_labeled_count": len(llm_labeled_docs),
+        "classifier_labeled_count": len(classifier_labeled_docs),
+        "skipped_document_count": other_count,
+        "warnings": warnings_list,
     }

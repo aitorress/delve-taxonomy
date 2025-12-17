@@ -53,6 +53,7 @@ class Delve:
         predefined_taxonomy: Optional[Union[str, List[Dict[str, str]]]] = None,
         embedding_model: str = "text-embedding-3-large",
         classifier_confidence_threshold: float = 0.0,
+        max_num_clusters: int = 5,
     ):
         """Initialize Delve client.
 
@@ -76,6 +77,7 @@ class Delve:
             embedding_model: OpenAI embedding model for classifier training (default: text-embedding-3-large)
             classifier_confidence_threshold: Minimum confidence for classifier predictions.
                 Documents below threshold are labeled by LLM (default: 0.0 = no fallback).
+            max_num_clusters: Maximum number of clusters/categories to generate (default: 5).
         """
         self.config = Configuration(
             model=model,
@@ -90,6 +92,7 @@ class Delve:
             predefined_taxonomy=predefined_taxonomy,
             embedding_model=embedding_model,
             classifier_confidence_threshold=classifier_confidence_threshold,
+            max_num_clusters=max_num_clusters,
         )
         self.console = self.config.get_console()
 

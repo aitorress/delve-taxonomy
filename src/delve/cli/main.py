@@ -79,6 +79,12 @@ def cli():
     help="Batch size for processing",
 )
 @click.option(
+    "--max-clusters",
+    type=int,
+    default=5,
+    help="Maximum number of clusters/categories to generate",
+)
+@click.option(
     "--output-dir",
     type=click.Path(),
     default="./results",
@@ -128,6 +134,7 @@ def run(
     fast_llm: str,
     sample_size: int,
     batch_size: int,
+    max_clusters: int,
     output_dir: str,
     output_format: tuple,
     use_case: Optional[str],
@@ -226,6 +233,7 @@ def run(
         fast_llm=fast_llm,
         sample_size=sample_size,
         batch_size=batch_size,
+        max_num_clusters=max_clusters,
         use_case=use_case,
         output_dir=output_dir,
         output_formats=list(output_format),

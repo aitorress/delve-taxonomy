@@ -37,6 +37,7 @@ delve = Delve(
     fast_llm="anthropic/claude-haiku-4-5-20251001",
     sample_size=100,
     batch_size=200,
+    max_num_clusters=5,
     use_case="Generate taxonomy for my data",
     output_dir="./results",
     output_formats=["json", "csv", "markdown"],
@@ -95,6 +96,18 @@ delve = Delve(
   <Info>
     Smaller batches (50-100) produce more refined taxonomies. Larger batches (200-300) are faster but may be less precise.
   </Info>
+</ParamField>
+
+<ParamField path="max_num_clusters" type="integer" default="5">
+  Maximum number of clusters/categories to generate in the taxonomy.
+
+  ```python
+  delve = Delve(max_num_clusters=10)
+  ```
+
+  <Tip>
+    Start with a smaller number (5-10) for focused taxonomies. Increase for more granular categorization of diverse datasets.
+  </Tip>
 </ParamField>
 
 <ParamField path="use_case" type="string" default="Generate taxonomy for categorizing document content">

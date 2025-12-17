@@ -121,6 +121,18 @@ delve run DATA_SOURCE [OPTIONS]
   </Info>
 </ParamField>
 
+<ParamField path="--max-clusters" type="integer" default="5">
+  Maximum number of clusters/categories to generate in the taxonomy.
+
+  ```bash
+  delve run data.csv --text-column text --max-clusters 10
+  ```
+
+  <Tip>
+    Start with a smaller number (5-10) for focused taxonomies. Increase for more granular categorization of diverse datasets.
+  </Tip>
+</ParamField>
+
 ### Output Options
 
 <ParamField path="--output-dir" type="path" default="./results">

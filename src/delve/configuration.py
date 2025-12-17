@@ -107,6 +107,13 @@ class Configuration:
         },
     )
 
+    max_num_clusters: int = field(
+        default=5,
+        metadata={
+            "description": "Maximum number of clusters/categories to generate in the taxonomy."
+        },
+    )
+
     def __post_init__(self) -> None:
         """Initialize console based on verbosity."""
         # Create console if not provided
@@ -161,5 +168,6 @@ class Configuration:
             "predefined_taxonomy": self.predefined_taxonomy,
             "embedding_model": self.embedding_model,
             "classifier_confidence_threshold": self.classifier_confidence_threshold,
+            "max_num_clusters": self.max_num_clusters,
             "console": self.console,
         }

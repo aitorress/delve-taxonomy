@@ -242,7 +242,7 @@ TAXONOMY_CONFIG = {
     "cluster_name_length": 10,
     "cluster_description_length": 30,
     "explanation_length": 20,
-    "max_num_clusters": 25,
+    "max_num_clusters": 5,
 }
 
 

@@ -48,18 +48,18 @@
     "links": [
       {
         "label": "GitHub",
-        "href": "https://google.com"
+        "href": "https://github.com/aitorress/delve-taxonomy"
       }
     ],
     "primary": {
       "type": "button",
       "label": "Get Started",
-      "href": "https://google.com"
+      "href": "https://github.com/aitorress/delve-taxonomy#quick-start"
     }
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/anthropics/delve"
+      "github": "https://github.com/aitorress/delve-taxonomy"
     }
   }
 }

@@ -2,7 +2,7 @@
 
 Delve is a production-ready SDK and CLI for automatically generating taxonomies from your data using state-of-the-art language models.
 
-📚 **[Read the full documentation →](https://delve.mintlify.app)**
+📚 **[Read the full documentation →](https://wildcampstudio.mintlify.app)**
 
 ## Quick Start
 
@@ -71,11 +71,11 @@ for doc in result.labeled_documents[:5]:
 
 ## Documentation
 
-- 📖 [Full Documentation](https://delve.mintlify.app)
-- 🚀 [Quickstart Guide](https://delve.mintlify.app/quickstart)
-- 💻 [CLI Reference](https://delve.mintlify.app/cli-reference)
-- 🐍 [SDK Reference](https://delve.mintlify.app/sdk-reference)
-- 📚 [Examples](https://delve.mintlify.app/examples)
+- 📖 [Full Documentation](https://wildcampstudio.mintlify.app)
+- 🚀 [Quickstart Guide](https://wildcampstudio.mintlify.app/quickstart)
+- 💻 [CLI Reference](https://wildcampstudio.mintlify.app/cli-reference)
+- 🐍 [SDK Reference](https://wildcampstudio.mintlify.app/sdk-reference)
+- 📚 [Examples](https://wildcampstudio.mintlify.app/examples)
 
 ## Development
 
@@ -109,4 +109,4 @@ cd docs
 mintlify dev
 ```
 
-See the [full documentation](https://delve.mintlify.app) for more details on contributing and development.
+See the [full documentation](https://wildcampstudio.mintlify.app) for more details on contributing and development.

@@ -120,6 +120,11 @@ async def label_documents(
     configuration = Configuration.from_runnable_config(config)
     console = configuration.get_console()
 
+    # Debug: Show configuration
+    console.debug(f"Configuration: model={configuration.model}, fast_llm={configuration.fast_llm}")
+    console.debug(f"Sample size: {configuration.sample_size}, Batch size: {configuration.batch_size}")
+    console.debug(f"Documents to label: {len(state.documents)}, Total documents: {len(state.all_documents)}")
+
     # Get latest taxonomy
     latest_clusters = None
     for clusters in reversed(state.clusters):
@@ -132,6 +137,11 @@ async def label_documents(
 
     if not latest_clusters:
         raise ValueError("No valid clusters found in state")
+
+    # Debug: Show taxonomy categories
+    console.debug(f"Taxonomy has {len(latest_clusters)} categories:")
+    for cat in latest_clusters:
+        console.debug(f"  [{cat['id']}] {cat['name']}")
 
     # Step 1: Label sampled documents with LLM
     labeling_chain = _setup_classification_chain(configuration)
@@ -215,6 +225,9 @@ async def label_documents(
         f"Classifier trained - Test F1: {metrics['test_f1']:.3f}, "
         f"Test Accuracy: {metrics['test_accuracy']:.3f}"
     )
+    console.debug(f"Classifier metrics detail:")
+    console.debug(f"  Train Accuracy: {metrics['train_accuracy']:.3f}, Train F1: {metrics['train_f1']:.3f}")
+    console.debug(f"  Test Accuracy: {metrics['test_accuracy']:.3f}, Test F1: {metrics['test_f1']:.3f}")
 
     # Get unlabeled documents (those not in the sample)
     sampled_ids = {doc.id for doc in llm_labeled_docs}

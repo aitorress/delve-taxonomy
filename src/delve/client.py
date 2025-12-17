@@ -230,6 +230,18 @@ class Delve:
             ...     days=7
             ... )
         """
+        # Debug: Show full configuration
+        self.console.debug("=" * 50)
+        self.console.debug("Delve Configuration:")
+        self.console.debug(f"  Model: {self.config.model}")
+        self.console.debug(f"  Fast LLM: {self.config.fast_llm}")
+        self.console.debug(f"  Sample size: {self.config.sample_size}")
+        self.console.debug(f"  Batch size: {self.config.batch_size}")
+        self.console.debug(f"  Embedding model: {self.config.embedding_model}")
+        self.console.debug(f"  Output dir: {self.config.output_dir}")
+        self.console.debug(f"  Use case: {self.config.use_case}")
+        self.console.debug("=" * 50)
+
         # 0. Validate API keys before starting
         # Check for OpenAI key if sample_size > 0 (might need embeddings for classifier)
         # We check conservatively since we don't know doc count yet

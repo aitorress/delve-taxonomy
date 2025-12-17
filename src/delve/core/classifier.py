@@ -65,6 +65,15 @@ def train_classifier(
     min_samples_per_class = counts.min()
     can_stratify = min_samples_per_class >= 2 and len(np.unique(y)) > 1
 
+    # Debug: Show class distribution
+    if console:
+        console.debug(f"Training set: {len(y)} samples, {len(unique)} classes")
+        console.debug(f"Class distribution:")
+        for cls_idx, count in zip(unique, counts):
+            cls_name = index_to_category.get(cls_idx, f"Unknown({cls_idx})")
+            console.debug(f"  [{cls_idx}] {cls_name}: {count} samples")
+        console.debug(f"Stratified split: {can_stratify}")
+
     # Split for validation
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y if can_stratify else None

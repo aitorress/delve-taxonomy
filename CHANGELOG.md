@@ -5,6 +5,18 @@ All notable changes to Delve will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2025-01-16
+
+### Added
+
+- **DEBUG mode enhancements**: Added meaningful debug output to differentiate DEBUG from VERBOSE mode:
+  - Full configuration display at startup (model, sample size, batch size, etc.)
+  - Taxonomy category listing with IDs
+  - Classifier class distribution and sample counts per category
+  - Detailed train/test metrics
+
+---
+
 ## [0.1.5] - 2025-01-16
 
 ### Fixed

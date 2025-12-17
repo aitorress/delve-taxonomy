@@ -47,7 +47,6 @@ class Delve:
         use_case: Optional[str] = None,
         output_dir: str = "./results",
         output_formats: Optional[List[str]] = None,
-        verbose: Optional[bool] = None,
         verbosity: Verbosity = Verbosity.SILENT,
         console: Optional[Console] = None,
         predefined_taxonomy: Optional[Union[str, List[Dict[str, str]]]] = None,
@@ -66,7 +65,6 @@ class Delve:
             use_case: Description of the taxonomy use case
             output_dir: Directory for output files
             output_formats: List of formats to generate (json, csv, markdown)
-            verbose: Deprecated. Use verbosity instead.
             verbosity: Verbosity level (SILENT, QUIET, NORMAL, VERBOSE, DEBUG).
                 SDK default is SILENT. Use NORMAL for progress output.
             console: Optional Console instance. If not provided, one is created
@@ -86,7 +84,6 @@ class Delve:
             use_case=use_case or "Generate taxonomy for categorizing document content",
             output_dir=output_dir,
             output_formats=output_formats or ["json", "csv", "markdown"],
-            verbose=verbose,
             verbosity=verbosity,
             console=console,
             predefined_taxonomy=predefined_taxonomy,
@@ -246,7 +243,7 @@ class Delve:
         # Filter out configuration parameters that shouldn't be passed to adapters
         config_params = {
             "model", "fast_llm", "sample_size", "batch_size",
-            "output_formats", "output_dir", "verbose", "verbosity", "use_case"
+            "output_formats", "output_dir", "verbosity", "use_case"
         }
         filtered_kwargs = {
             k: v for k, v in adapter_kwargs.items()

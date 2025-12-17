@@ -10,6 +10,7 @@ This example demonstrates advanced features like:
 
 import asyncio
 from delve import Delve
+from delve.console import Verbosity
 import pandas as pd
 
 async def async_example():
@@ -43,7 +44,7 @@ def custom_configuration_example():
         sample_size=200,
         batch_size=100,
         output_dir="./custom_results",
-        verbose=True
+        verbosity=Verbosity.NORMAL
     )
 
     result = delve.run_sync(

@@ -190,18 +190,28 @@ delve run DATA_SOURCE [OPTIONS]
 
 ### Output Control
 
-<ParamField path="--verbose / --quiet" type="boolean" default="true">
-  Enable or disable progress output.
+<ParamField path="-q / -v / -vv" type="verbosity flags">
+  Control output verbosity level.
 
   ```bash
-  # Verbose (default)
-  delve run data.csv --text-column text --verbose
+  # Normal (default) - spinners and checkmarks
+  delve run data.csv --text-column text
 
-  # Quiet
-  delve run data.csv --text-column text --quiet
+  # Quiet - errors only
+  delve run data.csv --text-column text -q
+
+  # Verbose - progress bars with ETA
+  delve run data.csv --text-column text -v
+
+  # Debug - everything including internal state
+  delve run data.csv --text-column text -vv
   ```
 
-  Quiet mode suppresses all non-error output.
+  Levels:
+  - No flag: `NORMAL` - Spinners and completion checkmarks
+  - `-q`: `QUIET` - Errors only
+  - `-v`: `VERBOSE` - Progress bars with throughput-based ETA
+  - `-vv`: `DEBUG` - Full debug output including warnings
 </ParamField>
 
 ## Examples

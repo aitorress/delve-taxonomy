@@ -5,6 +5,7 @@ instead of discovering categories from scratch.
 """
 
 from delve import Delve
+from delve.console import Verbosity
 
 # Example 1: Using a predefined taxonomy as a Python list
 predefined_categories = [
@@ -34,7 +35,7 @@ predefined_categories = [
 delve = Delve(
     predefined_taxonomy=predefined_categories,
     sample_size=50,  # Process 50 documents
-    verbose=True
+    verbosity=Verbosity.NORMAL
 )
 
 # Run on your data - it will skip discovery and go straight to labeling

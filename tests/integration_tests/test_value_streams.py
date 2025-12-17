@@ -10,6 +10,7 @@ Example:
 import sys
 from pathlib import Path
 from delve import Delve
+from delve.console import Verbosity
 
 def main():
     # Check arguments
@@ -45,7 +46,7 @@ def main():
     # Initialize Delve with predefined taxonomy
     delve = Delve(
         predefined_taxonomy=str(taxonomy_path),
-        verbose=True,
+        verbosity=Verbosity.NORMAL,
         output_dir="./results_value_streams",
         output_formats=["json", "csv", "markdown"]
     )

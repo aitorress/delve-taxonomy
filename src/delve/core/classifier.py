@@ -71,12 +71,16 @@ def train_classifier(
     )
 
     # Calculate class weights to handle imbalanced data
+    # Note: np.unique returns sorted unique values, and compute_class_weight
+    # returns weights in the same order. We must map actual class indices
+    # (not 0,1,2...) to weights since some categories may be missing.
+    unique_classes = np.unique(y_train)
     class_weights = class_weight.compute_class_weight(
         class_weight="balanced",
-        classes=np.unique(y_train),
+        classes=unique_classes,
         y=y_train
     )
-    class_weight_dict = dict(enumerate(class_weights))
+    class_weight_dict = dict(zip(unique_classes, class_weights))
 
     # Train RandomForest
     model = RandomForestClassifier(

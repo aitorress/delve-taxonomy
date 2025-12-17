@@ -40,7 +40,7 @@ delve = Delve(
     use_case="Generate taxonomy for my data",
     output_dir="./results",
     output_formats=["json", "csv", "markdown"],
-    verbose=True,
+    verbosity=Verbosity.NORMAL,  # SILENT, QUIET, NORMAL, VERBOSE, DEBUG
     predefined_taxonomy=None,  # Use existing taxonomy instead of generating
     embedding_model="text-embedding-3-large",
     classifier_confidence_threshold=0.0
@@ -134,12 +134,25 @@ delve = Delve(
   - `markdown` - Human-readable reports
 </ParamField>
 
-<ParamField path="verbose" type="boolean" default="true">
-  Enable progress logging during processing.
+<ParamField path="verbosity" type="Verbosity" default="Verbosity.SILENT">
+  Output verbosity level. Controls how much progress information is displayed.
 
   ```python
-  delve = Delve(verbose=False)  # Quiet mode
+  from delve.console import Verbosity
+
+  delve = Delve(verbosity=Verbosity.SILENT)   # No output (SDK default)
+  delve = Delve(verbosity=Verbosity.QUIET)    # Errors only
+  delve = Delve(verbosity=Verbosity.NORMAL)   # Spinners + checkmarks
+  delve = Delve(verbosity=Verbosity.VERBOSE)  # Progress bars with ETA
+  delve = Delve(verbosity=Verbosity.DEBUG)    # Everything + internal state
   ```
+
+  Levels:
+  - `SILENT` (0) - No output, ideal for SDK usage in scripts
+  - `QUIET` (1) - Errors only
+  - `NORMAL` (2) - Spinners and success checkmarks
+  - `VERBOSE` (3) - Progress bars with item counts and ETA
+  - `DEBUG` (4) - All output plus warnings and debug info
 </ParamField>
 
 <ParamField path="predefined_taxonomy" type="string | list | None" default="None">

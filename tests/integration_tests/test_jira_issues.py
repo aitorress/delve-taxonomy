@@ -10,6 +10,7 @@ This script:
 from pathlib import Path
 import pandas as pd
 from delve import Delve
+from delve.console import Verbosity
 
 def main():
     # Input file (assuming it's in the root directory)
@@ -59,7 +60,7 @@ def main():
     delve = Delve(
         predefined_taxonomy=str(taxonomy_path),
         sample_size=100,  # LLM labels this many, classifier does the rest
-        verbose=True,
+        verbosity=Verbosity.NORMAL,
         output_dir="./results_jira_value_streams",
         output_formats=["json", "csv", "markdown"],
         embedding_model="text-embedding-3-large"

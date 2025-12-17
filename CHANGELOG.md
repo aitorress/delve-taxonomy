@@ -5,6 +5,14 @@ All notable changes to Delve will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2025-01-16
+
+### Fixed
+
+- **Classifier class weight bug**: Fixed incorrect class weight mapping when training classifier with sparse category indices. Previously, when some taxonomy categories had no labeled examples (e.g., documents labeled as "Other" were skipped), the class weights were incorrectly mapped using sequential indices instead of actual class indices, causing `ValueError: The classes, [X], are not in class_weight`.
+
+---
+
 ## [0.1.4] - 2025-01-16
 
 ### Added
@@ -23,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CLI Flags**: Replaced `--verbose/--quiet` with `-q/-v/-vv` pattern (Unix standard)
 - **SDK Default**: Now silent by default (library best practice)
-- **Backward Compatibility**: `verbose=True/False` still works, maps to `NORMAL/SILENT`
 
 ### Fixed
 
@@ -43,12 +50,12 @@ delve run data.csv --text-column text -vv    # Debug (everything)
 
 ```python
 # SDK
-from delve import Delve, Verbosity
+from delve import Delve
+from delve.console import Verbosity
 
 delve = Delve()  # Silent by default
 delve = Delve(verbosity=Verbosity.NORMAL)    # With output
 delve = Delve(verbosity=Verbosity.VERBOSE)   # With progress bars
-delve = Delve(verbose=True)                  # Backward compat
 ```
 
 ---
@@ -108,7 +115,7 @@ Delve v0.1.0 is the first production-ready release, transforming the taxonomy_ge
 - **Mode**: Interactive (LangGraph Studio) → Non-interactive (SDK/CLI)
 - **Interface**: Studio-based → Programmatic and CLI
 - **State Structure**: Removed interactive fields (`messages`, `user_feedback`, `UserFeedback` class)
-- **Configuration**: Removed `max_runs`, added `output_formats`, `output_dir`, `verbose`, `use_case`
+- **Configuration**: Removed `max_runs`, added `output_formats`, `output_dir`, `verbosity`, `use_case`
 - **Graph Flow**: Removed human-in-the-loop nodes (`request_taxonomy_approval`, `handle_user_feedback`)
 
 #### Architecture Changes

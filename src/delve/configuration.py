@@ -61,13 +61,6 @@ class Configuration:
         },
     )
 
-    verbose: Optional[bool] = field(
-        default=None,
-        metadata={
-            "description": "Deprecated: Use verbosity instead. Kept for backward compatibility."
-        },
-    )
-
     verbosity: Verbosity = field(
         default=Verbosity.SILENT,
         metadata={
@@ -115,14 +108,7 @@ class Configuration:
     )
 
     def __post_init__(self) -> None:
-        """Handle backward compatibility and initialize console."""
-        # Handle backward compatibility: verbose=True/False -> verbosity
-        if self.verbose is not None:
-            if self.verbose:
-                self.verbosity = Verbosity.NORMAL
-            else:
-                self.verbosity = Verbosity.SILENT
-
+        """Initialize console based on verbosity."""
         # Create console if not provided
         if self.console is None:
             self.console = Console(self.verbosity)

@@ -50,10 +50,11 @@ print(results_df['category'].value_counts())
 
 Skip taxonomy discovery and use your own categories:
 
-```python
+<CodeGroup>
+```python Inline Definition
 from delve import Delve
 
-# Define your taxonomy
+# Define your taxonomy inline
 taxonomy = [
     {"id": "1", "name": "Bug", "description": "Bug reports and issues"},
     {"id": "2", "name": "Feature", "description": "Feature requests"},
@@ -63,6 +64,29 @@ taxonomy = [
 delve = Delve(predefined_taxonomy=taxonomy)
 result = delve.run_sync("issues.csv", text_column="description")
 ```
+
+```python From JSON File
+from delve import Delve
+
+# Load taxonomy from a JSON file
+# File format: [{"id": "1", "name": "...", "description": "..."}, ...]
+delve = Delve(predefined_taxonomy="categories.json")
+result = delve.run_sync("issues.csv", text_column="description")
+```
+
+```python From CSV File
+from delve import Delve
+
+# Load taxonomy from a CSV file
+# Required columns: id, name, description
+delve = Delve(predefined_taxonomy="categories.csv")
+result = delve.run_sync("issues.csv", text_column="description")
+```
+</CodeGroup>
+
+<Tip>
+Use predefined taxonomy when you already know your categories, want consistent labeling across runs, or need to match an existing classification system.
+</Tip>
 
 ## Processing Documents Directly
 
@@ -101,14 +125,12 @@ asyncio.run(main())
 
 ```python
 from delve import Delve
-from collections import Counter
 
 result = delve.run_sync("data.csv", text_column="text")
 
-# Category distribution
-distribution = Counter(doc.category for doc in result.labeled_documents)
-for category, count in distribution.most_common():
-    pct = (count / len(result.labeled_documents)) * 100
+# Category distribution (from metadata)
+for category, count in result.metadata["category_counts"].items():
+    pct = (count / result.metadata["num_documents"]) * 100
     print(f"{category}: {count} ({pct:.1f}%)")
 
 # Filter by category
@@ -116,6 +138,58 @@ bugs = [doc for doc in result.labeled_documents if doc.category == "Bug"]
 
 # Access export paths
 print(result.export_paths['taxonomy'])  # Path to taxonomy.json
+```
+
+## Working with Metadata
+
+Access comprehensive run statistics:
+
+```python
+from delve import Delve, Verbosity
+
+delve = Delve(verbosity=Verbosity.NORMAL)
+result = delve.run_sync("data.csv", text_column="text")
+
+# Run timing
+print(f"Completed in {result.metadata['run_duration_seconds']:.1f} seconds")
+
+# Labeling breakdown
+llm = result.metadata["llm_labeled_count"]
+classifier = result.metadata["classifier_labeled_count"]
+print(f"LLM labeled: {llm}, Classifier labeled: {classifier}")
+
+# Top categories
+from collections import Counter
+top_5 = Counter(result.metadata["category_counts"]).most_common(5)
+for category, count in top_5:
+    print(f"  {category}: {count}")
+
+# Check for warnings
+if result.metadata["warnings"]:
+    print("Warnings:")
+    for warning in result.metadata["warnings"]:
+        print(f"  - {warning}")
+```
+
+## Checking Classifier Performance
+
+When the classifier is used (sample_size < total docs):
+
+```python
+from delve import Delve
+
+delve = Delve(sample_size=100)  # Will use classifier if > 100 docs
+result = delve.run_sync("large_dataset.csv", text_column="text")
+
+# Check if classifier was used
+if "classifier_metrics" in result.metadata:
+    metrics = result.metadata["classifier_metrics"]
+    print(f"Classifier Performance:")
+    print(f"  Test Accuracy: {metrics['test_accuracy']:.1%}")
+    print(f"  Test F1 Score: {metrics['test_f1']:.3f}")
+    print(f"  Train Accuracy: {metrics['train_accuracy']:.1%}")
+else:
+    print("All documents were labeled by LLM (no classifier needed)")
 ```
 
 ## CLI Quick Examples
@@ -142,8 +216,9 @@ git clone https://github.com/anthropics/delve.git
 cd delve
 pip install -e .
 
-# Set API key
+# Set API keys
 export ANTHROPIC_API_KEY="your-key"
+export OPENAI_API_KEY="your-key"  # Required for classifier embeddings
 
 # Run examples
 cd examples

@@ -125,7 +125,7 @@ def load_chat_model(fully_specified_name: str) -> BaseChatModel:
     except ValueError:
         raise ValueError(
             f"Invalid model name format: '{fully_specified_name}'\n"
-            f"Expected format: 'provider/model-name' (e.g., 'anthropic/claude-3-5-sonnet-20241022')"
+            f"Expected format: 'provider/model-name' (e.g., 'anthropic/claude-sonnet-4-5-20250929')"
         )
     
     try:

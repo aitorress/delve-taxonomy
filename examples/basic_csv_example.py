@@ -9,7 +9,7 @@ from delve import Delve
 def main():
     # Initialize Delve client with default settings
     delve = Delve(
-        model="anthropic/claude-3-5-sonnet-20241022",
+        model="anthropic/claude-sonnet-4-5-20250929",
         sample_size=100,
         output_dir="./results"
     )

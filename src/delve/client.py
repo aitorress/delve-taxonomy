@@ -32,7 +32,7 @@ class Delve:
 
         >>> # With custom configuration
         >>> delve = Delve(
-        ...     model="anthropic/claude-3-5-sonnet-20241022",
+        ...     model="anthropic/claude-sonnet-4-5-20250929",
         ...     sample_size=200,
         ...     output_dir="./my_results"
         ... )
@@ -41,7 +41,7 @@ class Delve:
 
     def __init__(
         self,
-        model: str = "anthropic/claude-3-5-sonnet-20241022",
+        model: str = "anthropic/claude-sonnet-4-5-20250929",
         fast_llm: Optional[str] = None,
         sample_size: int = 100,
         batch_size: int = 200,
@@ -79,7 +79,7 @@ class Delve:
         """
         self.config = Configuration(
             model=model,
-            fast_llm=fast_llm or "anthropic/claude-3-haiku-20240307",
+            fast_llm=fast_llm or "anthropic/claude-haiku-4-5-20251001",
             sample_size=sample_size,
             batch_size=batch_size,
             use_case=use_case or "Generate taxonomy for categorizing document content",

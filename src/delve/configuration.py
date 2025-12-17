@@ -18,7 +18,7 @@ class Configuration:
     """The configuration for the Delve taxonomy generator."""
 
     model: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default="anthropic/claude-3-5-sonnet-20241022",
+        default="anthropic/claude-sonnet-4-5-20250929",
         metadata={
             "description": "The name of the language model to use for the agent's main interactions. "
             "Should be in the form: provider/model-name."
@@ -26,7 +26,7 @@ class Configuration:
     )
 
     fast_llm: Annotated[str, {"__template_metadata__": {"kind": "llm"}}] = field(
-        default="anthropic/claude-3-haiku-20240307",
+        default="anthropic/claude-haiku-4-5-20251001",
         metadata={
             "description": "A faster, lighter model for tasks like summarization. "
             "Should be in the form: provider/model-name."

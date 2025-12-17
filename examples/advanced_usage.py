@@ -38,8 +38,8 @@ def custom_configuration_example():
     print("=== Custom Configuration Example ===\n")
 
     delve = Delve(
-        model="anthropic/claude-3-5-sonnet-20241022",
-        fast_llm="anthropic/claude-3-haiku-20240307",
+        model="anthropic/claude-sonnet-4-5-20250929",
+        fast_llm="anthropic/claude-haiku-4-5-20251001",
         use_case="Analyze support tickets to identify common issues",
         sample_size=200,
         batch_size=100,

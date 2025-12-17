@@ -58,12 +58,12 @@ def cli():
 )
 @click.option(
     "--model",
-    default="anthropic/claude-3-5-sonnet-20241022",
+    default="anthropic/claude-sonnet-4-5-20250929",
     help="Main LLM model for reasoning",
 )
 @click.option(
     "--fast-llm",
-    default="anthropic/claude-3-haiku-20240307",
+    default="anthropic/claude-haiku-4-5-20251001",
     help="Fast LLM for summarization",
 )
 @click.option(

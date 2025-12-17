@@ -263,6 +263,7 @@ class Delve:
         self.console.debug(f"  Fast LLM: {self.config.fast_llm}")
         self.console.debug(f"  Sample size: {self.config.sample_size}")
         self.console.debug(f"  Batch size: {self.config.batch_size}")
+        self.console.debug(f"  Max clusters: {self.config.max_num_clusters}")
         self.console.debug(f"  Embedding model: {self.config.embedding_model}")
         self.console.debug(f"  Output dir: {self.config.output_dir}")
         self.console.debug(f"  Use case: {self.config.use_case}")

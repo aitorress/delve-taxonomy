@@ -6,7 +6,7 @@ from delve.state import Doc
 from delve.configuration import Configuration
 from delve.result import DelveResult, TaxonomyCategory
 
-__version__ = "0.1.9"
+__version__ = "0.1.10"
 
 __all__ = [
     "Delve",

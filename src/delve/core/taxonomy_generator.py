@@ -16,9 +16,9 @@ def _setup_taxonomy_chain(configuration: Configuration, feedback: str, use_case:
         use_case=effective_use_case,
         feedback=feedback,
     )
-    # Create the chain
+    # Create the chain - use main model for taxonomy generation (core reasoning task)
     model = load_chat_model(
-        configuration.fast_llm,
+        configuration.model,
     )
 
     return (

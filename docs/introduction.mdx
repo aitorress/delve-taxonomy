@@ -13,6 +13,10 @@ Delve is a production-ready SDK and CLI for automatically generating taxonomies 
 
 Whether you have customer feedback, support tickets, user reviews, or any other unstructured text data, Delve can automatically discover categories and organize your content.
 
+<Note>
+Delve is inspired by the [TNT-LLM paper](https://arxiv.org/abs/2403.12173), implementing a **hybrid unsupervised + supervised approach** that combines LLM-powered taxonomy discovery with efficient ML-based classification. [Learn more about the methodology →](/how-it-works)
+</Note>
+
 ## Key Features
 
 - **Automated Taxonomy Generation** - No manual category creation needed. Delve uses iterative minibatch-based clustering with Claude 3.5 Sonnet to automatically discover categories in your data.
@@ -56,11 +60,11 @@ Delve is perfect for:
   <Card title="Quickstart" icon="rocket" href="/quickstart">
     Get started in 5 minutes
   </Card>
-  <Card title="CLI Reference" icon="terminal" href="/cli-reference">
-    Learn CLI commands
+  <Card title="How It Works" icon="gears" href="/how-it-works">
+    Understand the TNT-LLM methodology
   </Card>
-  <Card title="SDK Reference" icon="code" href="/sdk-reference">
-    Use the Python SDK
+  <Card title="Configuration Guide" icon="sliders" href="/configuration-guide">
+    Tune parameters for your use case
   </Card>
   <Card title="Examples" icon="book" href="/examples">
     See code examples

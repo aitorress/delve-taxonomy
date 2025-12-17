@@ -15,7 +15,9 @@
         "pages": [
           "introduction",
           "quickstart",
-          "installation"
+          "installation",
+          "how-it-works",
+          "configuration-guide"
         ]
       },
       {

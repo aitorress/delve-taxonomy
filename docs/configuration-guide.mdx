@@ -1,0 +1,387 @@
+---
+title: 'Configuration Guide'
+description: 'Understanding how each parameter affects your taxonomy results'
+---
+
+This guide explains how Delve's configuration parameters affect taxonomy quality, cost, and performance. Understanding these tradeoffs helps you tune Delve for your specific use case.
+
+## Model Selection
+
+### `model` - Main LLM
+
+The main model handles the "thinking" tasks: taxonomy generation, iterative refinement, and quality review.
+
+| Model | Strengths | Best For |
+|-------|-----------|----------|
+| `anthropic/claude-sonnet-4-5-20250929` | Excellent balance of capability and cost | Default choice, most use cases |
+| `anthropic/claude-opus-4` | Highest reasoning capability | Complex domains, nuanced categories |
+| `anthropic/claude-haiku-4-5-20251001` | Fast and cheap | Quick iterations, simple data |
+
+**How it affects results:**
+- **More capable models** → Better category definitions, more nuanced distinctions
+- **Faster models** → Quicker iterations but potentially less refined taxonomies
+
+```python
+# High-quality taxonomy for complex data
+delve = Delve(model="anthropic/claude-opus-4")
+
+# Quick iteration during development
+delve = Delve(model="anthropic/claude-haiku-4-5-20251001")
+```
+
+<Tip>
+Start with Claude Sonnet (default) and only upgrade to Opus if you need more nuanced category distinctions. The quality difference is often subtle for straightforward categorization tasks.
+</Tip>
+
+### `fast_llm` - Summarization & Labeling Model
+
+The fast LLM handles high-volume tasks: document summarization and individual document labeling.
+
+**How it affects results:**
+- **Summary quality** impacts downstream taxonomy quality (garbage in, garbage out)
+- **Labeling accuracy** directly affects your final results
+- **Cost scales** with document count, so model choice matters more here
+
+```python
+# Default: fast and cost-effective
+delve = Delve(fast_llm="anthropic/claude-haiku-4-5-20251001")
+
+# Higher quality labeling at higher cost
+delve = Delve(fast_llm="anthropic/claude-sonnet-4-5-20250929")
+```
+
+<Info>
+Claude Haiku is the recommended choice for most use cases. It's significantly cheaper while maintaining good quality for summarization and labeling tasks.
+</Info>
+
+## Processing Parameters
+
+### `sample_size` - Taxonomy Discovery Sample
+
+**What it controls:** How many documents are used to discover and validate the taxonomy.
+
+**How it affects results:**
+
+| Sample Size | Effect on Taxonomy | Effect on Labeling |
+|-------------|-------------------|-------------------|
+| **Smaller (50-100)** | May miss rare categories | Smaller training set for classifier |
+| **Medium (100-200)** | Good coverage for typical data | Balanced accuracy |
+| **Larger (200-500)** | Comprehensive coverage | Better classifier accuracy |
+| **Very large (500+)** | Diminishing returns | Excellent but expensive |
+
+**Cost implications:**
+- Each sampled document requires LLM summarization
+- Each sampled document requires LLM labeling
+- Larger samples = proportionally higher costs for taxonomy discovery
+
+```python
+# Quick exploration
+delve = Delve(sample_size=50)
+
+# Production use
+delve = Delve(sample_size=150)
+
+# Comprehensive analysis
+delve = Delve(sample_size=300)
+```
+
+<Warning>
+Setting `sample_size=0` means ALL documents are labeled by the LLM. This is expensive for large datasets but guarantees every document gets LLM-quality labeling.
+</Warning>
+
+**When to increase sample size:**
+- Your data is highly diverse (many potential categories)
+- Initial runs are missing important categories
+- Classifier accuracy is below expectations
+
+**When to decrease sample size:**
+- Your data is homogeneous
+- You're iterating on taxonomy design
+- Budget is constrained
+
+### `batch_size` - Minibatch Size for Clustering
+
+**What it controls:** How many documents the LLM sees at once during taxonomy generation.
+
+**How it affects results:**
+
+| Batch Size | Iterations | Taxonomy Quality |
+|------------|------------|------------------|
+| **Smaller (50-100)** | More iterations | More refined, potentially more categories discovered |
+| **Medium (150-200)** | Moderate | Balanced |
+| **Larger (200-300)** | Fewer iterations | Faster but may miss nuances |
+
+**Example:** With `sample_size=200`:
+- `batch_size=50` → 4 iterations of refinement
+- `batch_size=200` → 1 iteration (no refinement)
+
+```python
+# More refined taxonomy (more iterations)
+delve = Delve(sample_size=200, batch_size=50)
+
+# Faster processing
+delve = Delve(sample_size=200, batch_size=200)
+```
+
+<Tip>
+If your taxonomy seems to be missing categories, try reducing `batch_size` to allow more refinement iterations.
+</Tip>
+
+### `max_num_clusters` - Category Limit
+
+**What it controls:** The maximum number of categories the LLM will generate.
+
+**How it affects results:**
+
+| Max Clusters | Result |
+|--------------|--------|
+| **Small (3-5)** | High-level, broad categories |
+| **Medium (5-10)** | Balanced granularity |
+| **Large (10-20)** | Fine-grained categories |
+| **Very large (20+)** | Risk of overlapping or sparse categories |
+
+**Choosing the right value:**
+- Consider how you'll use the taxonomy
+- More categories = more specific insights but harder to analyze
+- Fewer categories = easier to understand but less detail
+
+```python
+# Executive summary level
+delve = Delve(max_num_clusters=5)
+
+# Detailed analysis
+delve = Delve(max_num_clusters=15)
+```
+
+<Warning>
+Setting this too high can lead to overlapping categories or categories with very few documents. The LLM may also create artificial distinctions to fill the quota.
+</Warning>
+
+**Recommendations by use case:**
+
+| Use Case | Recommended `max_num_clusters` |
+|----------|-------------------------------|
+| Quick overview | 3-5 |
+| Support ticket triage | 5-10 |
+| Detailed content analysis | 10-15 |
+| Research categorization | 10-20 |
+
+## Classification Parameters
+
+### `embedding_model` - Classifier Embeddings
+
+**What it controls:** Which OpenAI model generates embeddings for classifier training.
+
+**Available options:**
+- `text-embedding-3-large` (default) - Highest quality, 3072 dimensions
+- `text-embedding-3-small` - Faster, cheaper, 1536 dimensions
+- `text-embedding-ada-002` - Legacy, 1536 dimensions
+
+**How it affects results:**
+- Better embeddings → Better classifier accuracy
+- Larger embeddings → Slightly slower training and inference
+
+```python
+# Best accuracy (default)
+delve = Delve(embedding_model="text-embedding-3-large")
+
+# Cost-effective alternative
+delve = Delve(embedding_model="text-embedding-3-small")
+```
+
+<Info>
+The difference in classifier accuracy between embedding models is usually small (1-3%). For most use cases, the default is fine.
+</Info>
+
+### `classifier_confidence_threshold` - LLM Fallback
+
+**What it controls:** When the classifier is uncertain, should it fall back to LLM labeling?
+
+**How it works:**
+- Classifier outputs probability scores for each category
+- If the top probability is below the threshold, use LLM instead
+- `0.0` = Never fall back (use classifier for everything)
+- `0.8` = Fall back when classifier is < 80% confident
+
+**Tradeoffs:**
+
+| Threshold | Classifier Usage | LLM Fallback | Cost |
+|-----------|-----------------|--------------|------|
+| 0.0 (default) | 100% | 0% | Lowest |
+| 0.5 | ~85-95% | ~5-15% | Low |
+| 0.8 | ~60-80% | ~20-40% | Medium |
+| 0.95 | ~30-50% | ~50-70% | High |
+
+```python
+# Trust classifier completely (default)
+delve = Delve(classifier_confidence_threshold=0.0)
+
+# Use LLM for uncertain cases
+delve = Delve(classifier_confidence_threshold=0.7)
+
+# Prioritize accuracy over cost
+delve = Delve(classifier_confidence_threshold=0.85)
+```
+
+<Tip>
+Start with the default (0.0). If you notice miscategorized documents, try increasing the threshold to 0.6-0.8 to improve accuracy on edge cases.
+</Tip>
+
+## Customization Parameters
+
+### `use_case` - Domain Context
+
+**What it controls:** Provides context to the LLM about your specific use case.
+
+**How it affects results:**
+- More specific use cases → More relevant category names and descriptions
+- Guides the LLM to focus on distinctions that matter for your domain
+
+**Examples:**
+
+```python
+# Generic (less helpful)
+delve = Delve(use_case="Categorize documents")
+
+# Specific (better results)
+delve = Delve(use_case="Categorize customer support tickets by issue type and urgency for routing to appropriate teams")
+
+# Domain-specific (best results)
+delve = Delve(use_case="Categorize e-commerce product reviews by: product quality issues, shipping problems, customer service interactions, and feature requests")
+```
+
+<Tip>
+Be specific about:
+- What kind of documents you have
+- What distinctions matter to you
+- How you'll use the categories
+</Tip>
+
+### `predefined_taxonomy` - Skip Discovery
+
+**What it controls:** Use an existing taxonomy instead of discovering one.
+
+**When to use:**
+- You already have categories you want to apply
+- You're labeling new data with an established taxonomy
+- You want consistent categories across multiple runs
+
+**How it affects the pipeline:**
+- Skips phases 3-6 (minibatch generation, taxonomy generation, update, review)
+- Goes directly to document labeling
+- Much faster for large datasets with known categories
+
+```python
+# From a file
+delve = Delve(predefined_taxonomy="categories.json")
+
+# Inline definition
+delve = Delve(predefined_taxonomy=[
+    {"id": "1", "name": "Bug Report", "description": "Reports of software bugs or defects"},
+    {"id": "2", "name": "Feature Request", "description": "Requests for new features or enhancements"},
+    {"id": "3", "name": "Question", "description": "General questions about usage or functionality"},
+])
+```
+
+## Output Configuration
+
+### `output_formats` - Export Types
+
+**Available formats:**
+- `json` - Machine-readable, good for integrations
+- `csv` - Spreadsheet-compatible, good for analysis
+- `markdown` - Human-readable reports, good for sharing
+
+```python
+# All formats (default)
+delve = Delve(output_formats=["json", "csv", "markdown"])
+
+# Just what you need
+delve = Delve(output_formats=["csv"])  # For spreadsheet analysis
+delve = Delve(output_formats=["json"])  # For API integration
+```
+
+### `verbosity` - Progress Output
+
+| Level | What You See | Best For |
+|-------|--------------|----------|
+| `SILENT` | Nothing | SDK integration, pipelines |
+| `QUIET` | Errors only | Background jobs |
+| `NORMAL` | Spinners, checkmarks | Interactive use |
+| `VERBOSE` | Progress bars with ETA | Monitoring long runs |
+| `DEBUG` | Everything + internal state | Troubleshooting |
+
+```python
+from delve import Delve, Verbosity
+
+# Silent for scripts
+delve = Delve(verbosity=Verbosity.SILENT)
+
+# Visual feedback for interactive use
+delve = Delve(verbosity=Verbosity.VERBOSE)
+```
+
+## Recommended Configurations
+
+### Quick Exploration
+
+```python
+delve = Delve(
+    sample_size=50,
+    batch_size=50,
+    max_num_clusters=5,
+    fast_llm="anthropic/claude-haiku-4-5-20251001",
+    verbosity=Verbosity.NORMAL,
+)
+```
+
+### Balanced Production
+
+```python
+delve = Delve(
+    sample_size=150,
+    batch_size=100,
+    max_num_clusters=10,
+    use_case="Your specific use case here",
+    verbosity=Verbosity.VERBOSE,
+)
+```
+
+### High-Quality Analysis
+
+```python
+delve = Delve(
+    model="anthropic/claude-opus-4",
+    sample_size=300,
+    batch_size=75,
+    max_num_clusters=15,
+    classifier_confidence_threshold=0.7,
+    use_case="Detailed domain-specific description",
+    verbosity=Verbosity.VERBOSE,
+)
+```
+
+### Cost-Optimized at Scale
+
+```python
+delve = Delve(
+    sample_size=100,
+    batch_size=200,
+    max_num_clusters=8,
+    fast_llm="anthropic/claude-haiku-4-5-20251001",
+    embedding_model="text-embedding-3-small",
+    classifier_confidence_threshold=0.0,
+    verbosity=Verbosity.QUIET,
+)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="How It Works" icon="gears" href="/how-it-works">
+    Understand the pipeline in depth
+  </Card>
+  <Card title="Examples" icon="book" href="/examples">
+    See complete code examples
+  </Card>
+</CardGroup>

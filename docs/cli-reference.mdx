@@ -5,10 +5,14 @@ description: 'Complete reference for delve CLI commands'
 
 ## Basic Usage
 
-The `delve` CLI provides a simple interface for taxonomy generation:
+The `delve` CLI provides commands for taxonomy generation and API server management:
 
 ```bash
+# Generate taxonomy from data
 delve run DATA_SOURCE [OPTIONS]
+
+# Start API server for JavaScript/TypeScript integration
+delve serve [OPTIONS]
 ```
 
 ## Command: run
@@ -366,6 +370,99 @@ Human-readable Markdown report with:
 - Document distribution statistics
 - Sample documents per category
 
+---
+
+## Command: serve
+
+Start the Delve REST API server for integration with JavaScript/TypeScript frontends.
+
+```bash
+delve serve [OPTIONS]
+```
+
+### Options
+
+<ParamField path="--host" type="string" default="127.0.0.1">
+  Host address to bind the server to.
+
+  ```bash
+  # Bind to all interfaces (for Docker/production)
+  delve serve --host 0.0.0.0
+
+  # Localhost only (default)
+  delve serve --host 127.0.0.1
+  ```
+</ParamField>
+
+<ParamField path="--port" type="integer" default="8000">
+  Port number to bind the server to.
+
+  ```bash
+  delve serve --port 3000
+  ```
+</ParamField>
+
+<ParamField path="--reload" type="flag">
+  Enable auto-reload for development. The server restarts when source files change.
+
+  ```bash
+  delve serve --reload
+  ```
+
+  <Warning>
+    Only use `--reload` in development. It's not suitable for production.
+  </Warning>
+</ParamField>
+
+<ParamField path="--cors-origins" type="string" default="*">
+  Comma-separated list of allowed CORS origins.
+
+  ```bash
+  # Allow specific origins
+  delve serve --cors-origins "http://localhost:3000,https://myapp.com"
+
+  # Allow all origins (default, for development)
+  delve serve --cors-origins "*"
+  ```
+
+  <Tip>
+    In production, always specify explicit origins instead of using `*`.
+  </Tip>
+</ParamField>
+
+### Examples
+
+```bash
+# Start with defaults (localhost:8000)
+delve serve
+
+# Development mode with auto-reload
+delve serve --reload
+
+# Production mode on custom port
+delve serve --host 0.0.0.0 --port 80
+
+# Restrict CORS for production
+delve serve --cors-origins "https://myapp.com,https://api.myapp.com"
+```
+
+### API Endpoints
+
+When the server starts, you get:
+
+| Endpoint | Description |
+|----------|-------------|
+| `http://localhost:8000/docs` | Interactive Swagger UI documentation |
+| `http://localhost:8000/openapi.json` | OpenAPI schema (for code generation) |
+| `http://localhost:8000/health` | Health check endpoint |
+| `http://localhost:8000/taxonomies` | Taxonomy generation API |
+
+<Info>
+  See the [REST API Reference](/api-reference) for complete endpoint documentation.
+</Info>
+
+---
+
 ## Getting Help
 
 ```bash
@@ -374,6 +471,9 @@ delve --help
 
 # Get help for run command
 delve run --help
+
+# Get help for serve command
+delve serve --help
 
 # Check version
 delve --version

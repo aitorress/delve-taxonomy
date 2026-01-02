@@ -300,5 +300,83 @@ def run(
         sys.exit(1)
 
 
+@cli.command()
+@click.option(
+    "--host",
+    type=str,
+    default="127.0.0.1",
+    help="Host to bind the server to",
+)
+@click.option(
+    "--port",
+    type=int,
+    default=8000,
+    help="Port to bind the server to",
+)
+@click.option(
+    "--reload",
+    is_flag=True,
+    help="Enable auto-reload for development",
+)
+@click.option(
+    "--cors-origins",
+    type=str,
+    default="*",
+    help="Comma-separated list of allowed CORS origins",
+)
+def serve(
+    host: str,
+    port: int,
+    reload: bool,
+    cors_origins: str,
+):
+    """Start the Delve API server.
+
+    Runs a FastAPI server that exposes Delve functionality via REST API.
+    This enables integration with JavaScript/TypeScript frontends and other
+    HTTP clients.
+
+    \b
+    Examples:
+
+      \b
+      # Start server with default settings
+      delve serve
+
+      \b
+      # Start on custom host/port
+      delve serve --host 0.0.0.0 --port 3000
+
+      \b
+      # Development mode with auto-reload
+      delve serve --reload
+
+      \b
+      # Restrict CORS origins
+      delve serve --cors-origins "http://localhost:3000,https://myapp.com"
+    """
+    import uvicorn
+
+    from delve.api import create_app
+
+    # Parse CORS origins
+    origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
+
+    # Create app with configured CORS
+    app = create_app(cors_origins=origins)
+
+    click.echo(f"Starting Delve API server at http://{host}:{port}")
+    click.echo(f"API docs available at http://{host}:{port}/docs")
+    click.echo(f"OpenAPI schema at http://{host}:{port}/openapi.json")
+    click.echo("")
+
+    uvicorn.run(
+        app,
+        host=host,
+        port=port,
+        reload=reload,
+    )
+
+
 if __name__ == "__main__":
     cli()

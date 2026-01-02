@@ -1,0 +1,440 @@
+---
+title: 'REST API Reference'
+description: 'HTTP API for integrating Delve with JavaScript/TypeScript frontends'
+---
+
+Delve provides a REST API that exposes all SDK functionality over HTTP. This enables integration with any language or framework that can make HTTP requests, with first-class support for JavaScript and TypeScript frontends.
+
+## Quick Start
+
+### Starting the Server
+
+```bash
+# Install delve-taxonomy
+pip install delve-taxonomy
+
+# Start the API server
+delve serve
+
+# Or with custom options
+delve serve --host 0.0.0.0 --port 3000 --reload
+```
+
+The server starts at `http://localhost:8000` with:
+- Interactive API docs at `/docs` (Swagger UI)
+- OpenAPI schema at `/openapi.json`
+
+### Basic Usage (JavaScript)
+
+```javascript
+// Create a taxonomy generation job
+const response = await fetch('http://localhost:8000/taxonomies', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    documents: [
+      { id: '1', content: 'Fix the login button bug' },
+      { id: '2', content: 'Add dark mode support' },
+      { id: '3', content: 'Improve loading performance' },
+    ],
+    config: {
+      use_case: 'Categorize software issues',
+      max_num_clusters: 5,
+    },
+  }),
+});
+
+const job = await response.json();
+console.log('Job ID:', job.job_id);
+
+// Poll for results
+const result = await pollForCompletion(job.job_id);
+console.log('Categories:', result.taxonomy);
+```
+
+## Server Options
+
+```bash
+delve serve [OPTIONS]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--host` | `127.0.0.1` | Host to bind the server to |
+| `--port` | `8000` | Port to bind the server to |
+| `--reload` | `false` | Enable auto-reload for development |
+| `--cors-origins` | `*` | Comma-separated list of allowed CORS origins |
+
+**Examples:**
+
+```bash
+# Production deployment
+delve serve --host 0.0.0.0 --port 80
+
+# Development with auto-reload
+delve serve --reload
+
+# Restrict CORS to specific origins
+delve serve --cors-origins "http://localhost:3000,https://myapp.com"
+```
+
+## API Endpoints
+
+### Health Check
+
+<ParamField path="GET /health" type="endpoint">
+  Check API health status.
+
+  **Response:**
+  ```json
+  {
+    "status": "healthy",
+    "version": "0.1.10",
+    "timestamp": "2024-01-15T10:30:00Z"
+  }
+  ```
+</ParamField>
+
+---
+
+### Create Taxonomy Job
+
+<ParamField path="POST /taxonomies" type="endpoint">
+  Start a new taxonomy generation job. Returns immediately with a job ID that can be used to poll for status or stream progress.
+
+  **Request Body:**
+
+  | Field | Type | Required | Description |
+  |-------|------|----------|-------------|
+  | `file_path` | string | One of file_path or documents | Path to file on server (CSV, JSON, JSONL) |
+  | `documents` | array | One of file_path or documents | Inline documents to process |
+  | `source_type` | string | No | Force source type: `csv`, `json`, `jsonl`, `inline` |
+  | `text_column` | string | For CSV | Column name containing text content |
+  | `id_column` | string | No | Column name for document IDs |
+  | `json_path` | string | No | JSONPath for nested JSON data |
+  | `config` | object | No | Taxonomy generation configuration |
+  | `predefined_taxonomy` | array | No | Use predefined categories instead of generating |
+
+  **Config Object:**
+
+  | Field | Type | Default | Description |
+  |-------|------|---------|-------------|
+  | `model` | string | `anthropic/claude-sonnet-4-5-20250929` | Main LLM model |
+  | `fast_llm` | string | `anthropic/claude-haiku-4-5-20251001` | Fast model for summarization |
+  | `sample_size` | integer | `100` | Documents to sample for LLM labeling |
+  | `batch_size` | integer | `200` | Documents per minibatch |
+  | `max_num_clusters` | integer | `5` | Maximum categories to generate |
+  | `use_case` | string | null | Custom use case description |
+  | `embedding_model` | string | `text-embedding-3-large` | OpenAI embedding model |
+  | `classifier_confidence_threshold` | float | `0.0` | Minimum classifier confidence |
+
+  **Response:** `202 Accepted`
+  ```json
+  {
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "pending",
+    "created_at": "2024-01-15T10:30:00Z",
+    "started_at": null,
+    "completed_at": null,
+    "progress": null,
+    "error": null,
+    "result": null
+  }
+  ```
+</ParamField>
+
+**Examples:**
+
+<CodeGroup>
+```javascript Inline Documents
+const response = await fetch('http://localhost:8000/taxonomies', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    documents: [
+      { id: '1', content: 'The app crashes when I click submit' },
+      { id: '2', content: 'Please add export to PDF feature' },
+      { id: '3', content: 'How do I reset my password?' },
+    ],
+    config: {
+      use_case: 'Categorize customer support tickets',
+      max_num_clusters: 5,
+    },
+  }),
+});
+```
+
+```javascript File Path
+const response = await fetch('http://localhost:8000/taxonomies', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    file_path: '/data/feedback.csv',
+    text_column: 'comment',
+    id_column: 'ticket_id',
+    config: {
+      sample_size: 200,
+      max_num_clusters: 10,
+    },
+  }),
+});
+```
+
+```javascript Predefined Taxonomy
+const response = await fetch('http://localhost:8000/taxonomies', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    documents: myDocuments,
+    predefined_taxonomy: [
+      { id: '1', name: 'Bug', description: 'Bug reports and issues' },
+      { id: '2', name: 'Feature', description: 'Feature requests' },
+      { id: '3', name: 'Question', description: 'General questions' },
+    ],
+  }),
+});
+```
+</CodeGroup>
+
+---
+
+### Get Job Status
+
+<ParamField path="GET /taxonomies/{job_id}" type="endpoint">
+  Get the current status and result of a taxonomy generation job.
+
+  **Path Parameters:**
+  | Parameter | Type | Description |
+  |-----------|------|-------------|
+  | `job_id` | string | Unique job identifier |
+
+  **Response:**
+  ```json
+  {
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "completed",
+    "created_at": "2024-01-15T10:30:00Z",
+    "started_at": "2024-01-15T10:30:01Z",
+    "completed_at": "2024-01-15T10:32:15Z",
+    "progress": "Labeled 1000 documents",
+    "error": null,
+    "result": {
+      "taxonomy": [...],
+      "labeled_documents": [...],
+      "metadata": {...}
+    }
+  }
+  ```
+
+  **Job Status Values:**
+  | Status | Description |
+  |--------|-------------|
+  | `pending` | Job created, waiting to start |
+  | `running` | Job is currently processing |
+  | `completed` | Job finished successfully |
+  | `failed` | Job failed with error |
+</ParamField>
+
+---
+
+### Stream Job Progress (SSE)
+
+<ParamField path="GET /taxonomies/{job_id}/stream" type="endpoint">
+  Stream real-time progress updates via Server-Sent Events (SSE).
+
+  **Path Parameters:**
+  | Parameter | Type | Description |
+  |-----------|------|-------------|
+  | `job_id` | string | Unique job identifier |
+
+  **Response:** `text/event-stream`
+
+  **Event Types:**
+  | Event | Description |
+  |-------|-------------|
+  | `status` | Initial status when connecting |
+  | `progress` | Progress update message |
+  | `started` | Job has started processing |
+  | `completed` | Job completed with result |
+  | `error` | Job failed with error |
+
+  **Example Events:**
+  ```
+  data: {"event": "status", "job_id": "...", "status": "running", "progress": "Loading data..."}
+
+  data: {"event": "progress", "job_id": "...", "message": "Processing 100 documents..."}
+
+  data: {"event": "progress", "job_id": "...", "message": "Generating taxonomy..."}
+
+  data: {"event": "completed", "job_id": "...", "result": {...}}
+  ```
+</ParamField>
+
+**JavaScript SSE Example:**
+
+```javascript
+const eventSource = new EventSource(`http://localhost:8000/taxonomies/${jobId}/stream`);
+
+eventSource.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  switch (data.event) {
+    case 'progress':
+      console.log('Progress:', data.message);
+      break;
+    case 'completed':
+      console.log('Result:', data.result);
+      eventSource.close();
+      break;
+    case 'error':
+      console.error('Error:', data.error);
+      eventSource.close();
+      break;
+  }
+};
+
+eventSource.onerror = () => {
+  console.error('SSE connection failed');
+  eventSource.close();
+};
+```
+
+---
+
+### List Jobs
+
+<ParamField path="GET /taxonomies" type="endpoint">
+  List all taxonomy generation jobs with optional filtering.
+
+  **Query Parameters:**
+  | Parameter | Type | Default | Description |
+  |-----------|------|---------|-------------|
+  | `status` | string | null | Filter by status: `pending`, `running`, `completed`, `failed` |
+  | `limit` | integer | 50 | Maximum jobs to return (1-100) |
+  | `offset` | integer | 0 | Offset for pagination |
+
+  **Response:**
+  ```json
+  {
+    "jobs": [
+      { "job_id": "...", "status": "completed", ... },
+      { "job_id": "...", "status": "running", ... }
+    ],
+    "total": 42
+  }
+  ```
+</ParamField>
+
+---
+
+### Delete Job
+
+<ParamField path="DELETE /taxonomies/{job_id}" type="endpoint">
+  Delete a taxonomy generation job and its results.
+
+  **Path Parameters:**
+  | Parameter | Type | Description |
+  |-----------|------|-------------|
+  | `job_id` | string | Unique job identifier |
+
+  **Response:** `204 No Content`
+</ParamField>
+
+---
+
+## Response Schemas
+
+### TaxonomyResult
+
+The complete result returned when a job completes:
+
+```typescript
+interface TaxonomyResult {
+  taxonomy: TaxonomyCategory[];
+  labeled_documents: LabeledDocument[];
+  metadata: JobMetadata;
+}
+
+interface TaxonomyCategory {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface LabeledDocument {
+  id: string;
+  content: string;
+  category: string | null;
+  summary: string | null;
+  explanation: string | null;
+}
+
+interface JobMetadata {
+  num_documents: number;
+  num_categories: number;
+  sample_size: number;
+  batch_size: number;
+  model: string;
+  fast_llm: string;
+  run_duration_seconds: number;
+  category_counts: Record<string, number>;
+  llm_labeled_count: number;
+  classifier_labeled_count: number;
+  skipped_document_count: number;
+  classifier_metrics?: ClassifierMetrics;
+  warnings: string[];
+}
+
+interface ClassifierMetrics {
+  train_accuracy: number;
+  test_accuracy: number;
+  train_f1: number;
+  test_f1: number;
+}
+```
+
+## Error Handling
+
+All errors follow a consistent format:
+
+```json
+{
+  "error": "Error message",
+  "detail": "Additional details (optional)",
+  "code": "ERROR_CODE (optional)"
+}
+```
+
+**HTTP Status Codes:**
+
+| Code | Description |
+|------|-------------|
+| `200` | Success |
+| `202` | Accepted (job created) |
+| `204` | No Content (successful deletion) |
+| `400` | Bad Request (invalid parameters) |
+| `404` | Not Found (job doesn't exist) |
+| `500` | Internal Server Error |
+
+## Environment Variables
+
+The API server uses the same environment variables as the SDK:
+
+```bash
+# Required
+export ANTHROPIC_API_KEY="your-anthropic-key"
+
+# Required when sample_size > 0 (for classifier embeddings)
+export OPENAI_API_KEY="your-openai-key"
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="TypeScript Integration" icon="js" href="/typescript-integration">
+    Type-safe client for TypeScript/JavaScript
+  </Card>
+  <Card title="SDK Reference" icon="python" href="/sdk-reference">
+    Python SDK documentation
+  </Card>
+</CardGroup>

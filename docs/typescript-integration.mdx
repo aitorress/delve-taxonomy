@@ -1,0 +1,679 @@
+---
+title: 'TypeScript Integration'
+description: 'Type-safe integration with JavaScript and TypeScript frontends'
+---
+
+This guide shows how to integrate Delve's REST API with TypeScript and JavaScript frontends. We provide patterns for type-safe API calls, real-time streaming, and React integration.
+
+## Generating TypeScript Types
+
+The Delve API provides an OpenAPI schema that can be used to generate TypeScript types automatically.
+
+### Using openapi-typescript
+
+```bash
+# Install the generator
+npm install -D openapi-typescript
+
+# Generate types from running server
+npx openapi-typescript http://localhost:8000/openapi.json -o ./src/types/delve.ts
+
+# Or from a saved schema file
+npx openapi-typescript ./openapi.json -o ./src/types/delve.ts
+```
+
+This generates fully typed interfaces matching the API schema.
+
+## Type Definitions
+
+If you prefer to define types manually, here are the core interfaces:
+
+```typescript
+// src/types/delve.ts
+
+export type JobStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type SourceType = 'csv' | 'json' | 'jsonl' | 'inline';
+
+export interface TaxonomyConfig {
+  model?: string;
+  fast_llm?: string;
+  sample_size?: number;
+  batch_size?: number;
+  max_num_clusters?: number;
+  use_case?: string;
+  embedding_model?: string;
+  classifier_confidence_threshold?: number;
+}
+
+export interface InlineDocument {
+  id?: string;
+  content: string;
+}
+
+export interface PredefinedCategory {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface CreateTaxonomyRequest {
+  file_path?: string;
+  documents?: InlineDocument[];
+  source_type?: SourceType;
+  text_column?: string;
+  id_column?: string;
+  json_path?: string;
+  config?: TaxonomyConfig;
+  predefined_taxonomy?: PredefinedCategory[];
+}
+
+export interface TaxonomyCategory {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface LabeledDocument {
+  id: string;
+  content: string;
+  category: string | null;
+  summary: string | null;
+  explanation: string | null;
+}
+
+export interface ClassifierMetrics {
+  train_accuracy: number;
+  test_accuracy: number;
+  train_f1: number;
+  test_f1: number;
+}
+
+export interface JobMetadata {
+  num_documents: number;
+  num_categories: number;
+  sample_size: number;
+  batch_size: number;
+  model: string;
+  fast_llm: string;
+  run_duration_seconds: number;
+  category_counts: Record<string, number>;
+  llm_labeled_count: number;
+  classifier_labeled_count: number;
+  skipped_document_count: number;
+  classifier_metrics?: ClassifierMetrics;
+  warnings: string[];
+}
+
+export interface TaxonomyResult {
+  taxonomy: TaxonomyCategory[];
+  labeled_documents: LabeledDocument[];
+  metadata: JobMetadata;
+}
+
+export interface JobResponse {
+  job_id: string;
+  status: JobStatus;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  progress: string | null;
+  error: string | null;
+  result: TaxonomyResult | null;
+}
+
+export interface ProgressEvent {
+  event: 'status' | 'progress' | 'started' | 'completed' | 'error';
+  job_id: string;
+  message?: string;
+  status?: JobStatus;
+  result?: TaxonomyResult;
+  error?: string;
+}
+```
+
+## Delve Client Class
+
+Here's a full-featured TypeScript client for the Delve API:
+
+```typescript
+// src/lib/delve-client.ts
+
+import type {
+  CreateTaxonomyRequest,
+  JobResponse,
+  JobStatus,
+  ProgressEvent,
+  TaxonomyResult,
+} from './types/delve';
+
+export interface DelveClientOptions {
+  baseUrl?: string;
+  timeout?: number;
+}
+
+export class DelveClient {
+  private baseUrl: string;
+  private timeout: number;
+
+  constructor(options: DelveClientOptions = {}) {
+    this.baseUrl = options.baseUrl || 'http://localhost:8000';
+    this.timeout = options.timeout || 30000;
+  }
+
+  /**
+   * Create a new taxonomy generation job
+   */
+  async createJob(request: CreateTaxonomyRequest): Promise<JobResponse> {
+    const response = await fetch(`${this.baseUrl}/taxonomies`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || error.error || 'Failed to create job');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get job status and result
+   */
+  async getJob(jobId: string): Promise<JobResponse> {
+    const response = await fetch(`${this.baseUrl}/taxonomies/${jobId}`);
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error(`Job ${jobId} not found`);
+      }
+      const error = await response.json();
+      throw new Error(error.detail || error.error || 'Failed to get job');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Poll for job completion
+   */
+  async waitForCompletion(
+    jobId: string,
+    options: { pollInterval?: number; timeout?: number } = {}
+  ): Promise<TaxonomyResult> {
+    const { pollInterval = 2000, timeout = 300000 } = options;
+    const startTime = Date.now();
+
+    while (true) {
+      if (Date.now() - startTime > timeout) {
+        throw new Error('Job timed out');
+      }
+
+      const job = await this.getJob(jobId);
+
+      if (job.status === 'completed' && job.result) {
+        return job.result;
+      }
+
+      if (job.status === 'failed') {
+        throw new Error(job.error || 'Job failed');
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, pollInterval));
+    }
+  }
+
+  /**
+   * Stream job progress via SSE
+   */
+  streamProgress(
+    jobId: string,
+    callbacks: {
+      onProgress?: (message: string) => void;
+      onComplete?: (result: TaxonomyResult) => void;
+      onError?: (error: string) => void;
+    }
+  ): () => void {
+    const eventSource = new EventSource(
+      `${this.baseUrl}/taxonomies/${jobId}/stream`
+    );
+
+    eventSource.onmessage = (event) => {
+      const data: ProgressEvent = JSON.parse(event.data);
+
+      switch (data.event) {
+        case 'progress':
+          callbacks.onProgress?.(data.message || '');
+          break;
+        case 'completed':
+          if (data.result) {
+            callbacks.onComplete?.(data.result);
+          }
+          eventSource.close();
+          break;
+        case 'error':
+          callbacks.onError?.(data.error || 'Unknown error');
+          eventSource.close();
+          break;
+      }
+    };
+
+    eventSource.onerror = () => {
+      callbacks.onError?.('Connection failed');
+      eventSource.close();
+    };
+
+    // Return cleanup function
+    return () => eventSource.close();
+  }
+
+  /**
+   * Create job and wait for completion (convenience method)
+   */
+  async generateTaxonomy(
+    request: CreateTaxonomyRequest,
+    options?: { pollInterval?: number; timeout?: number }
+  ): Promise<TaxonomyResult> {
+    const job = await this.createJob(request);
+    return this.waitForCompletion(job.job_id, options);
+  }
+
+  /**
+   * List all jobs
+   */
+  async listJobs(options: {
+    status?: JobStatus;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<{ jobs: JobResponse[]; total: number }> {
+    const params = new URLSearchParams();
+    if (options.status) params.set('status', options.status);
+    if (options.limit) params.set('limit', String(options.limit));
+    if (options.offset) params.set('offset', String(options.offset));
+
+    const response = await fetch(
+      `${this.baseUrl}/taxonomies?${params.toString()}`
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || error.error || 'Failed to list jobs');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Delete a job
+   */
+  async deleteJob(jobId: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/taxonomies/${jobId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok && response.status !== 204) {
+      if (response.status === 404) {
+        throw new Error(`Job ${jobId} not found`);
+      }
+      const error = await response.json();
+      throw new Error(error.detail || error.error || 'Failed to delete job');
+    }
+  }
+
+  /**
+   * Health check
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/health`);
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+// Export singleton instance
+export const delve = new DelveClient();
+```
+
+## Usage Examples
+
+### Basic Usage
+
+```typescript
+import { DelveClient } from './lib/delve-client';
+
+const client = new DelveClient({ baseUrl: 'http://localhost:8000' });
+
+// Generate taxonomy from inline documents
+const result = await client.generateTaxonomy({
+  documents: [
+    { content: 'The app crashes when I click submit' },
+    { content: 'Please add export to PDF feature' },
+    { content: 'How do I reset my password?' },
+  ],
+  config: {
+    use_case: 'Categorize customer support tickets',
+    max_num_clusters: 5,
+  },
+});
+
+console.log('Categories:', result.taxonomy);
+console.log('Labeled docs:', result.labeled_documents);
+```
+
+### With Progress Streaming
+
+```typescript
+const client = new DelveClient();
+
+// Create job
+const job = await client.createJob({
+  documents: myDocuments,
+  config: { use_case: 'Categorize feedback' },
+});
+
+// Stream progress
+const cleanup = client.streamProgress(job.job_id, {
+  onProgress: (message) => {
+    console.log('Progress:', message);
+  },
+  onComplete: (result) => {
+    console.log('Done!', result.taxonomy);
+  },
+  onError: (error) => {
+    console.error('Failed:', error);
+  },
+});
+
+// Later: cleanup() to close the stream
+```
+
+## React Integration
+
+### React Hook
+
+```tsx
+// src/hooks/useDelve.ts
+
+import { useState, useCallback, useEffect } from 'react';
+import { DelveClient, type TaxonomyResult, type CreateTaxonomyRequest } from '../lib/delve-client';
+
+interface UseDelveOptions {
+  baseUrl?: string;
+}
+
+interface UseDelveReturn {
+  isLoading: boolean;
+  progress: string | null;
+  result: TaxonomyResult | null;
+  error: string | null;
+  generateTaxonomy: (request: CreateTaxonomyRequest) => Promise<void>;
+  reset: () => void;
+}
+
+export function useDelve(options: UseDelveOptions = {}): UseDelveReturn {
+  const [client] = useState(() => new DelveClient(options));
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
+  const [result, setResult] = useState<TaxonomyResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [cleanup, setCleanup] = useState<(() => void) | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => cleanup?.();
+  }, [cleanup]);
+
+  const generateTaxonomy = useCallback(async (request: CreateTaxonomyRequest) => {
+    setIsLoading(true);
+    setProgress(null);
+    setResult(null);
+    setError(null);
+
+    try {
+      const job = await client.createJob(request);
+
+      const cleanupFn = client.streamProgress(job.job_id, {
+        onProgress: setProgress,
+        onComplete: (result) => {
+          setResult(result);
+          setIsLoading(false);
+        },
+        onError: (err) => {
+          setError(err);
+          setIsLoading(false);
+        },
+      });
+
+      setCleanup(() => cleanupFn);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      setIsLoading(false);
+    }
+  }, [client]);
+
+  const reset = useCallback(() => {
+    cleanup?.();
+    setIsLoading(false);
+    setProgress(null);
+    setResult(null);
+    setError(null);
+  }, [cleanup]);
+
+  return { isLoading, progress, result, error, generateTaxonomy, reset };
+}
+```
+
+### React Component Example
+
+```tsx
+// src/components/TaxonomyGenerator.tsx
+
+import { useState } from 'react';
+import { useDelve } from '../hooks/useDelve';
+
+export function TaxonomyGenerator() {
+  const [documents, setDocuments] = useState('');
+  const { isLoading, progress, result, error, generateTaxonomy, reset } = useDelve();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const docs = documents
+      .split('\n')
+      .filter(Boolean)
+      .map((content, i) => ({ id: String(i + 1), content }));
+
+    await generateTaxonomy({
+      documents: docs,
+      config: {
+        use_case: 'Categorize documents',
+        max_num_clusters: 5,
+      },
+    });
+  };
+
+  return (
+    <div className="p-4">
+      <h1 className="text-2xl font-bold mb-4">Taxonomy Generator</h1>
+
+      <form onSubmit={handleSubmit}>
+        <textarea
+          value={documents}
+          onChange={(e) => setDocuments(e.target.value)}
+          placeholder="Enter documents (one per line)"
+          className="w-full h-40 p-2 border rounded"
+          disabled={isLoading}
+        />
+
+        <button
+          type="submit"
+          disabled={isLoading || !documents.trim()}
+          className="mt-2 px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
+        >
+          {isLoading ? 'Generating...' : 'Generate Taxonomy'}
+        </button>
+
+        {isLoading && <button type="button" onClick={reset}>Cancel</button>}
+      </form>
+
+      {progress && (
+        <div className="mt-4 p-2 bg-blue-100 rounded">
+          Progress: {progress}
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 p-2 bg-red-100 text-red-700 rounded">
+          Error: {error}
+        </div>
+      )}
+
+      {result && (
+        <div className="mt-4">
+          <h2 className="text-xl font-semibold">Generated Taxonomy</h2>
+
+          <div className="mt-2 space-y-2">
+            {result.taxonomy.map((cat) => (
+              <div key={cat.id} className="p-2 border rounded">
+                <div className="font-medium">{cat.name}</div>
+                <div className="text-gray-600">{cat.description}</div>
+              </div>
+            ))}
+          </div>
+
+          <h3 className="text-lg font-semibold mt-4">
+            Labeled Documents ({result.labeled_documents.length})
+          </h3>
+
+          <div className="mt-2 space-y-1">
+            {result.labeled_documents.map((doc) => (
+              <div key={doc.id} className="flex justify-between p-2 bg-gray-50">
+                <span className="truncate flex-1">{doc.content}</span>
+                <span className="ml-2 px-2 py-1 bg-blue-100 rounded text-sm">
+                  {doc.category}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Next.js Integration
+
+### API Route (App Router)
+
+```typescript
+// app/api/taxonomy/route.ts
+
+import { NextRequest, NextResponse } from 'next/server';
+
+const DELVE_API_URL = process.env.DELVE_API_URL || 'http://localhost:8000';
+
+export async function POST(request: NextRequest) {
+  const body = await request.json();
+
+  const response = await fetch(`${DELVE_API_URL}/taxonomies`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+  return NextResponse.json(data, { status: response.status });
+}
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const jobId = searchParams.get('jobId');
+
+  if (!jobId) {
+    return NextResponse.json({ error: 'jobId required' }, { status: 400 });
+  }
+
+  const response = await fetch(`${DELVE_API_URL}/taxonomies/${jobId}`);
+  const data = await response.json();
+  return NextResponse.json(data, { status: response.status });
+}
+```
+
+### Server Actions
+
+```typescript
+// app/actions/taxonomy.ts
+'use server';
+
+import { DelveClient } from '@/lib/delve-client';
+
+const client = new DelveClient({
+  baseUrl: process.env.DELVE_API_URL || 'http://localhost:8000',
+});
+
+export async function generateTaxonomy(documents: string[]) {
+  const result = await client.generateTaxonomy({
+    documents: documents.map((content, i) => ({
+      id: String(i + 1),
+      content,
+    })),
+    config: {
+      max_num_clusters: 5,
+    },
+  });
+
+  return result;
+}
+```
+
+## Error Handling Best Practices
+
+```typescript
+import { DelveClient } from './lib/delve-client';
+
+const client = new DelveClient();
+
+async function safeTaxonomyGeneration(documents: string[]) {
+  try {
+    // Check if server is healthy
+    const isHealthy = await client.healthCheck();
+    if (!isHealthy) {
+      throw new Error('Delve API server is not available');
+    }
+
+    // Generate taxonomy with timeout
+    const result = await client.generateTaxonomy(
+      {
+        documents: documents.map((content) => ({ content })),
+        config: { max_num_clusters: 5 },
+      },
+      { timeout: 60000 } // 1 minute timeout
+    );
+
+    return { success: true, result };
+  } catch (error) {
+    console.error('Taxonomy generation failed:', error);
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Complete REST API documentation
+  </Card>
+  <Card title="Examples" icon="book" href="/examples">
+    More usage examples
+  </Card>
+</CardGroup>

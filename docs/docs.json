@@ -27,9 +27,16 @@
         ]
       },
       {
-        "group": "SDK Usage",
+        "group": "Python SDK",
         "pages": [
           "sdk-reference"
+        ]
+      },
+      {
+        "group": "REST API",
+        "pages": [
+          "api-reference",
+          "typescript-integration"
         ]
       },
       {

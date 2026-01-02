@@ -134,6 +134,104 @@ Get up and running with Delve in just a few minutes. Choose your preferred inter
     - Learn about [async usage](/sdk-reference#async-api)
     - See more [examples](/examples)
   </Tab>
+
+  <Tab title="REST API">
+    ## Installation
+
+    <CodeGroup>
+    ```bash pip
+    pip install delve-taxonomy
+    ```
+
+    ```bash uv
+    uv add delve-taxonomy
+    ```
+    </CodeGroup>
+
+    ## Set API Key
+
+    Set your Anthropic API key as an environment variable:
+
+    ```bash
+    export ANTHROPIC_API_KEY="your-api-key-here"
+    ```
+
+    <Info>
+      Get your API key from the [Anthropic Console](https://console.anthropic.com/)
+    </Info>
+
+    ## Start the API Server
+
+    ```bash
+    delve serve
+    ```
+
+    The server starts at `http://localhost:8000` with:
+    - Interactive API docs at `/docs`
+    - OpenAPI schema at `/openapi.json`
+
+    ## Make Your First Request
+
+    Using JavaScript/TypeScript:
+
+    ```javascript
+    // Create a taxonomy generation job
+    const response = await fetch('http://localhost:8000/taxonomies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        documents: [
+          { content: 'The app crashes on login' },
+          { content: 'Please add dark mode' },
+          { content: 'How do I export data?' },
+        ],
+        config: {
+          use_case: 'Categorize user feedback',
+          max_num_clusters: 5,
+        },
+      }),
+    });
+
+    const job = await response.json();
+    console.log('Job ID:', job.job_id);
+    ```
+
+    Or using curl:
+
+    ```bash
+    curl -X POST http://localhost:8000/taxonomies \
+      -H "Content-Type: application/json" \
+      -d '{
+        "documents": [
+          {"content": "The app crashes on login"},
+          {"content": "Please add dark mode"}
+        ],
+        "config": {"use_case": "Categorize feedback"}
+      }'
+    ```
+
+    ## Poll for Results
+
+    ```javascript
+    // Poll until completion
+    const result = await fetch(`http://localhost:8000/taxonomies/${job.job_id}`);
+    const data = await result.json();
+
+    if (data.status === 'completed') {
+      console.log('Categories:', data.result.taxonomy);
+    }
+    ```
+
+    <Check>
+      The API supports real-time streaming via Server-Sent Events (SSE) for progress updates.
+    </Check>
+
+    ## Next Steps
+
+    - Read the full [REST API Reference](/api-reference)
+    - See [TypeScript Integration](/typescript-integration) for type-safe clients
+    - Generate TypeScript types from the OpenAPI schema
+  </Tab>
 </Tabs>
 
 ## Common Use Cases

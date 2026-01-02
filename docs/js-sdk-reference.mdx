@@ -1,0 +1,538 @@
+---
+title: 'JavaScript SDK Reference'
+description: 'TypeScript/JavaScript client for Delve Taxonomy API'
+---
+
+The Delve JavaScript SDK provides a type-safe client for the Delve REST API. Use it to integrate taxonomy generation into your frontend applications, Node.js services, or any JavaScript/TypeScript project.
+
+## Installation
+
+```bash
+npm install @delve-ai/taxonomy
+# or
+yarn add @delve-ai/taxonomy
+# or
+pnpm add @delve-ai/taxonomy
+```
+
+## Quick Start
+
+```typescript
+import { Delve } from '@delve-ai/taxonomy';
+
+// Create client pointing to your API server
+const delve = new Delve({
+  baseUrl: 'http://localhost:8000'
+});
+
+// Generate taxonomy from array of objects
+const result = await delve.generateFromArray(
+  [
+    { text: 'How do I reset my password?' },
+    { text: 'Billing question about my invoice' },
+    { text: 'Bug report: app crashes on startup' }
+  ],
+  {
+    textField: 'text',
+    config: { maxNumClusters: 5 }
+  }
+);
+
+console.log('Taxonomy:', result.taxonomy);
+console.log('Labeled docs:', result.labeledDocuments);
+```
+
+## Client Configuration
+
+```typescript
+import { Delve } from '@delve-ai/taxonomy';
+
+const delve = new Delve({
+  // API server URL (required)
+  baseUrl: 'http://localhost:8000',
+
+  // Optional: Custom headers (e.g., for auth)
+  headers: {
+    'Authorization': 'Bearer your-token'
+  },
+
+  // Optional: Request timeout (default: 5 minutes)
+  timeout: 300000,
+
+  // Optional: Custom fetch implementation
+  fetch: customFetch
+});
+```
+
+<ParamField path="baseUrl" type="string" default="http://localhost:8000">
+  Base URL of your Delve API server.
+</ParamField>
+
+<ParamField path="headers" type="object">
+  Custom headers to include in all requests. Useful for authentication.
+</ParamField>
+
+<ParamField path="timeout" type="number" default="300000">
+  Request timeout in milliseconds. Default is 5 minutes since taxonomy generation can take time.
+</ParamField>
+
+<ParamField path="fetch" type="function">
+  Custom fetch implementation. Useful for Node.js environments or custom handling.
+</ParamField>
+
+---
+
+## Methods
+
+### generateFromArray()
+
+Generate taxonomy from an array of data objects.
+
+```typescript
+const result = await delve.generateFromArray(
+  data: Record<string, unknown>[],
+  options?: {
+    textField?: string;    // Field containing text (default: 'text')
+    idField?: string;      // Field containing IDs
+    config?: DelveConfig;  // Generation configuration
+  }
+): Promise<DelveResult>
+```
+
+**Example:**
+
+```typescript
+const data = [
+  { message: 'Password reset help needed', ticket_id: '001' },
+  { message: 'Invoice discrepancy', ticket_id: '002' },
+  { message: 'Feature request: dark mode', ticket_id: '003' }
+];
+
+const result = await delve.generateFromArray(data, {
+  textField: 'message',
+  idField: 'ticket_id',
+  config: {
+    maxNumClusters: 5,
+    useCase: 'Categorize customer support tickets'
+  }
+});
+```
+
+---
+
+### generateFromDocuments()
+
+Generate taxonomy from pre-formatted Document objects.
+
+```typescript
+const result = await delve.generateFromDocuments(
+  documents: Document[],
+  options?: {
+    config?: DelveConfig;
+  }
+): Promise<DelveResult>
+```
+
+**Example:**
+
+```typescript
+const docs = [
+  { id: '1', content: 'How do I upgrade my plan?' },
+  { id: '2', content: 'App not loading on mobile' },
+  { id: '3', content: 'Request for bulk pricing' }
+];
+
+const result = await delve.generateFromDocuments(docs, {
+  config: { maxNumClusters: 5 }
+});
+```
+
+---
+
+### generateFromCSV()
+
+Generate taxonomy from CSV content.
+
+```typescript
+const result = await delve.generateFromCSV(
+  csvContent: string,
+  options: {
+    textColumn: string;    // Column containing text (required)
+    idColumn?: string;     // Column containing IDs
+    delimiter?: string;    // CSV delimiter (default: ',')
+    config?: DelveConfig;
+  }
+): Promise<DelveResult>
+```
+
+**Example:**
+
+```typescript
+const csv = `id,message,category
+1,"How do I reset password?",support
+2,"Billing inquiry",billing
+3,"Bug in checkout",technical`;
+
+const result = await delve.generateFromCSV(csv, {
+  textColumn: 'message',
+  idColumn: 'id',
+  config: { maxNumClusters: 5 }
+});
+```
+
+---
+
+### generateFromJSON()
+
+Generate taxonomy from JSON or JSONL content.
+
+```typescript
+const result = await delve.generateFromJSON(
+  jsonContent: string,
+  options?: {
+    textField?: string;    // Field containing text (default: 'text')
+    idField?: string;      // Field containing IDs
+    jsonPath?: string;     // JSONPath to extract documents
+    config?: DelveConfig;
+  }
+): Promise<DelveResult>
+```
+
+**Example:**
+
+```typescript
+const json = JSON.stringify([
+  { text: 'Login issues', id: 1 },
+  { text: 'Payment failed', id: 2 }
+]);
+
+const result = await delve.generateFromJSON(json, {
+  textField: 'text',
+  idField: 'id'
+});
+
+// With JSONPath for nested data
+const nestedJson = JSON.stringify({
+  data: {
+    messages: [
+      { content: 'Help needed' },
+      { content: 'Question about pricing' }
+    ]
+  }
+});
+
+const result2 = await delve.generateFromJSON(nestedJson, {
+  textField: 'content',
+  jsonPath: '$.data.messages[*]'
+});
+```
+
+---
+
+### labelDocuments()
+
+Label documents using an existing taxonomy (no new taxonomy generation).
+
+```typescript
+const result = await delve.labelDocuments(
+  documents: Document[],
+  taxonomy: TaxonomyCategory[],
+  options?: {
+    config?: DelveConfig;
+  }
+): Promise<LabelResult>
+```
+
+**Example:**
+
+```typescript
+// Use a previously generated taxonomy
+const taxonomy = [
+  { id: '1', name: 'Support', description: 'Customer support inquiries' },
+  { id: '2', name: 'Billing', description: 'Payment and invoice questions' }
+];
+
+const newDocs = [
+  { id: 'new1', content: 'Need help with my subscription' },
+  { id: 'new2', content: 'Where is my invoice?' }
+];
+
+const result = await delve.labelDocuments(newDocs, taxonomy);
+console.log(result.labeledDocuments);
+```
+
+---
+
+### health()
+
+Check API health status.
+
+```typescript
+const status = await delve.health();
+// { status: 'healthy', version: '0.1.0' }
+```
+
+---
+
+## Configuration Options
+
+The `config` object controls taxonomy generation:
+
+```typescript
+interface DelveConfig {
+  // Main LLM model (default: claude-sonnet-4-5-20250929)
+  model?: string;
+
+  // Fast LLM for summarization (default: claude-haiku-4-5-20251001)
+  fastLlm?: string;
+
+  // Documents to sample for taxonomy discovery (default: 100)
+  sampleSize?: number;
+
+  // Batch size for iterative refinement (default: 200)
+  batchSize?: number;
+
+  // Description of the use case/domain
+  useCase?: string;
+
+  // Maximum taxonomy categories (default: 5)
+  maxNumClusters?: number;
+
+  // Embedding model for classifier (default: text-embedding-3-large)
+  embeddingModel?: string;
+
+  // Confidence threshold for classifier (0-1, default: 0)
+  classifierConfidenceThreshold?: number;
+
+  // Predefined taxonomy (skip discovery)
+  predefinedTaxonomy?: TaxonomyCategory[];
+}
+```
+
+**Example with full config:**
+
+```typescript
+const result = await delve.generateFromArray(data, {
+  textField: 'message',
+  config: {
+    model: 'anthropic/claude-sonnet-4-5-20250929',
+    sampleSize: 200,
+    batchSize: 100,
+    maxNumClusters: 10,
+    useCase: 'Categorize product reviews by sentiment and topic',
+    classifierConfidenceThreshold: 0.8
+  }
+});
+```
+
+---
+
+## Types
+
+### TaxonomyCategory
+
+```typescript
+interface TaxonomyCategory {
+  id: string;          // Unique category identifier
+  name: string;        // Human-readable name
+  description: string; // Category description
+}
+```
+
+### Document
+
+```typescript
+interface Document {
+  id: string;           // Unique document identifier
+  content: string;      // Document text content
+  summary?: string;     // Generated summary
+  explanation?: string; // Category assignment explanation
+  category?: string;    // Assigned category ID
+}
+```
+
+### LabeledDocument
+
+```typescript
+interface LabeledDocument extends Document {
+  category: string;                    // Assigned category ID
+  confidence?: number;                 // Confidence score (0-1)
+  labeledBy?: 'llm' | 'classifier';   // Labeling method
+}
+```
+
+### DelveResult
+
+```typescript
+interface DelveResult {
+  taxonomy: TaxonomyCategory[];        // Generated categories
+  labeledDocuments: LabeledDocument[]; // All labeled documents
+  metadata: RunMetadata;               // Run statistics
+  config: DelveConfig;                 // Configuration used
+}
+```
+
+### RunMetadata
+
+```typescript
+interface RunMetadata {
+  totalDocuments: number;      // Total documents processed
+  sampledDocuments: number;    // Documents used for discovery
+  llmLabeledCount: number;     // Documents labeled by LLM
+  classifierLabeledCount: number; // Documents labeled by classifier
+  skippedDocumentCount: number;
+  classifierMetrics?: ClassifierMetrics;
+  durationMs: number;          // Processing time in ms
+  startedAt: string;           // ISO timestamp
+  completedAt: string;         // ISO timestamp
+  warnings: string[];
+}
+```
+
+---
+
+## Error Handling
+
+The SDK throws `DelveError` for all errors:
+
+```typescript
+import { Delve, DelveError } from '@delve-ai/taxonomy';
+
+try {
+  const result = await delve.generateFromArray(data);
+} catch (error) {
+  if (error instanceof DelveError) {
+    console.error('Status:', error.status);   // HTTP status code
+    console.error('Message:', error.message); // Error message
+    console.error('Details:', error.details); // Additional details
+  }
+}
+```
+
+---
+
+## Usage in Different Environments
+
+### React
+
+```typescript
+import { useState } from 'react';
+import { Delve, DelveResult } from '@delve-ai/taxonomy';
+
+function TaxonomyGenerator() {
+  const [result, setResult] = useState<DelveResult | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const delve = new Delve({ baseUrl: '/api' }); // Proxy to backend
+
+  async function generate(data: any[]) {
+    setLoading(true);
+    try {
+      const result = await delve.generateFromArray(data, {
+        textField: 'text',
+        config: { maxNumClusters: 5 }
+      });
+      setResult(result);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      {loading && <p>Generating taxonomy...</p>}
+      {result && (
+        <ul>
+          {result.taxonomy.map(cat => (
+            <li key={cat.id}>{cat.name}: {cat.description}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+```
+
+### Node.js
+
+```typescript
+import { Delve } from '@delve-ai/taxonomy';
+
+async function main() {
+  const delve = new Delve({
+    baseUrl: 'http://localhost:8000'
+  });
+
+  const result = await delve.generateFromArray(
+    [{ text: 'Document 1' }, { text: 'Document 2' }],
+    { textField: 'text' }
+  );
+
+  console.log(result.taxonomy);
+}
+
+main();
+```
+
+### Next.js API Route
+
+```typescript
+// pages/api/generate.ts
+import { Delve } from '@delve-ai/taxonomy';
+import type { NextApiRequest, NextApiResponse } from 'next';
+
+const delve = new Delve({
+  baseUrl: process.env.DELVE_API_URL || 'http://localhost:8000'
+});
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const result = await delve.generateFromArray(req.body.data, {
+      textField: req.body.textField || 'text',
+      config: req.body.config
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
+```
+
+---
+
+## TypeScript Support
+
+The SDK is written in TypeScript and provides full type definitions:
+
+```typescript
+import {
+  Delve,
+  DelveConfig,
+  DelveResult,
+  Document,
+  LabeledDocument,
+  TaxonomyCategory,
+  RunMetadata,
+  DelveError
+} from '@delve-ai/taxonomy';
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="REST API Reference" icon="server" href="/api-reference">
+    Full API endpoint documentation
+  </Card>
+  <Card title="Python SDK" icon="python" href="/sdk-reference">
+    Direct Python SDK usage
+  </Card>
+</CardGroup>

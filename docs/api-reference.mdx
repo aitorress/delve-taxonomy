@@ -1,0 +1,370 @@
+---
+title: 'REST API Reference'
+description: 'Complete REST API reference for Delve Taxonomy'
+---
+
+The Delve REST API provides HTTP endpoints for taxonomy generation and document labeling. This is the recommended way to integrate Delve with frontend applications.
+
+## Running the API Server
+
+```bash
+# Install dependencies
+pip install delve-taxonomy fastapi uvicorn python-multipart
+
+# Start the server
+cd your-project
+uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+The API will be available at `http://localhost:8000` with interactive docs at `/docs`.
+
+## Authentication
+
+Set environment variables before starting the server:
+
+```bash
+export ANTHROPIC_API_KEY="your-anthropic-key"
+export OPENAI_API_KEY="your-openai-key"  # Required for classifier embeddings
+```
+
+## Endpoints
+
+### Health Check
+
+<ParamField path="GET /" type="endpoint">
+  Returns API health status and version.
+
+  **Response:**
+  ```json
+  {
+    "status": "healthy",
+    "version": "0.1.0"
+  }
+  ```
+</ParamField>
+
+---
+
+### Generate from Array
+
+<ParamField path="POST /generate/array" type="endpoint">
+  Generate taxonomy from an array of data objects.
+
+  **Request Body:**
+  ```json
+  {
+    "data": [
+      {"text": "How do I reset my password?", "id": "1"},
+      {"text": "Billing question about my invoice", "id": "2"},
+      {"text": "Bug report: app crashes on startup", "id": "3"}
+    ],
+    "text_field": "text",
+    "id_field": "id",
+    "config": {
+      "max_num_clusters": 5,
+      "sample_size": 100,
+      "use_case": "Categorize customer support tickets"
+    }
+  }
+  ```
+
+  **Parameters:**
+
+  | Field | Type | Required | Description |
+  |-------|------|----------|-------------|
+  | `data` | array | Yes | Array of objects containing text data |
+  | `text_field` | string | No | Field containing text (default: "text") |
+  | `id_field` | string | No | Field containing document IDs |
+  | `config` | object | No | Generation configuration |
+</ParamField>
+
+---
+
+### Generate from Documents
+
+<ParamField path="POST /generate/documents" type="endpoint">
+  Generate taxonomy from pre-formatted Document objects.
+
+  **Request Body:**
+  ```json
+  {
+    "documents": [
+      {"id": "1", "content": "Customer asking about refund policy"},
+      {"id": "2", "content": "Technical support for API integration"}
+    ],
+    "config": {
+      "max_num_clusters": 5
+    }
+  }
+  ```
+
+  **Parameters:**
+
+  | Field | Type | Required | Description |
+  |-------|------|----------|-------------|
+  | `documents` | array | Yes | Array of Document objects |
+  | `config` | object | No | Generation configuration |
+</ParamField>
+
+---
+
+### Generate from CSV
+
+<ParamField path="POST /generate/csv" type="endpoint">
+  Generate taxonomy from CSV content.
+
+  **Request Body:**
+  ```json
+  {
+    "csv_content": "id,message\n1,How do I login?\n2,Refund request",
+    "text_column": "message",
+    "id_column": "id",
+    "delimiter": ",",
+    "config": {
+      "max_num_clusters": 5
+    }
+  }
+  ```
+
+  **Parameters:**
+
+  | Field | Type | Required | Description |
+  |-------|------|----------|-------------|
+  | `csv_content` | string | Yes | CSV file content as string |
+  | `text_column` | string | Yes | Column containing text |
+  | `id_column` | string | No | Column containing IDs |
+  | `delimiter` | string | No | CSV delimiter (default: ",") |
+  | `config` | object | No | Generation configuration |
+</ParamField>
+
+---
+
+### Generate from JSON
+
+<ParamField path="POST /generate/json" type="endpoint">
+  Generate taxonomy from JSON or JSONL content.
+
+  **Request Body:**
+  ```json
+  {
+    "json_content": "[{\"text\": \"Question 1\"}, {\"text\": \"Question 2\"}]",
+    "text_field": "text",
+    "id_field": null,
+    "json_path": null,
+    "config": {
+      "max_num_clusters": 5
+    }
+  }
+  ```
+
+  **Parameters:**
+
+  | Field | Type | Required | Description |
+  |-------|------|----------|-------------|
+  | `json_content` | string | Yes | JSON or JSONL content |
+  | `text_field` | string | No | Field containing text (default: "text") |
+  | `id_field` | string | No | Field containing IDs |
+  | `json_path` | string | No | JSONPath to extract documents |
+  | `config` | object | No | Generation configuration |
+</ParamField>
+
+---
+
+### Generate from File Upload
+
+<ParamField path="POST /generate/file" type="endpoint">
+  Generate taxonomy from an uploaded file (CSV, JSON, JSONL).
+
+  **Request:** `multipart/form-data`
+
+  | Field | Type | Required | Description |
+  |-------|------|----------|-------------|
+  | `file` | file | Yes | CSV, JSON, or JSONL file |
+  | `text_column` | string | Yes | Column/field containing text |
+  | `id_column` | string | No | Column/field containing IDs |
+  | `model` | string | No | LLM model to use |
+  | `sample_size` | integer | No | Sample size (default: 100) |
+  | `batch_size` | integer | No | Batch size (default: 200) |
+  | `max_num_clusters` | integer | No | Max categories (default: 5) |
+  | `use_case` | string | No | Use case description |
+
+  **Example with curl:**
+  ```bash
+  curl -X POST "http://localhost:8000/generate/file" \
+    -F "file=@data.csv" \
+    -F "text_column=message" \
+    -F "max_num_clusters=5"
+  ```
+</ParamField>
+
+---
+
+### Label Documents
+
+<ParamField path="POST /label" type="endpoint">
+  Label documents using an existing taxonomy (no taxonomy generation).
+
+  **Request Body:**
+  ```json
+  {
+    "documents": [
+      {"id": "1", "content": "New support ticket about billing"}
+    ],
+    "taxonomy": [
+      {"id": "1", "name": "Billing", "description": "Payment and invoice questions"},
+      {"id": "2", "name": "Technical", "description": "Technical support issues"}
+    ],
+    "config": {}
+  }
+  ```
+
+  **Response:**
+  ```json
+  {
+    "labeled_documents": [
+      {
+        "id": "1",
+        "content": "New support ticket about billing",
+        "category": "1",
+        "explanation": "Document discusses billing matters"
+      }
+    ],
+    "metadata": {
+      "total_documents": 1,
+      "duration_ms": 1234
+    }
+  }
+  ```
+</ParamField>
+
+---
+
+## Configuration Object
+
+All generation endpoints accept a `config` object with these options:
+
+```json
+{
+  "model": "anthropic/claude-sonnet-4-5-20250929",
+  "fast_llm": "anthropic/claude-haiku-4-5-20251001",
+  "sample_size": 100,
+  "batch_size": 200,
+  "use_case": "Describe your taxonomy use case",
+  "max_num_clusters": 5,
+  "embedding_model": "text-embedding-3-large",
+  "classifier_confidence_threshold": 0.0,
+  "predefined_taxonomy": null
+}
+```
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `model` | string | claude-sonnet-4-5-20250929 | Main LLM for taxonomy generation |
+| `fast_llm` | string | claude-haiku-4-5-20251001 | Fast LLM for summarization |
+| `sample_size` | integer | 100 | Documents for taxonomy discovery |
+| `batch_size` | integer | 200 | Batch size for refinement |
+| `use_case` | string | "" | Domain/use case description |
+| `max_num_clusters` | integer | 5 | Maximum categories |
+| `embedding_model` | string | text-embedding-3-large | Embedding model |
+| `classifier_confidence_threshold` | float | 0.0 | Classifier threshold |
+| `predefined_taxonomy` | array | null | Skip discovery, use this taxonomy |
+
+---
+
+## Response Format
+
+All generation endpoints return a `DelveResult` object:
+
+```json
+{
+  "taxonomy": [
+    {
+      "id": "1",
+      "name": "Account Issues",
+      "description": "Questions about login, password, and account access"
+    },
+    {
+      "id": "2",
+      "name": "Billing",
+      "description": "Payment, invoices, and subscription questions"
+    }
+  ],
+  "labeled_documents": [
+    {
+      "id": "doc_1",
+      "content": "How do I reset my password?",
+      "summary": "User asking about password reset",
+      "explanation": "This is an account access question",
+      "category": "1",
+      "confidence": null,
+      "labeled_by": "llm"
+    }
+  ],
+  "metadata": {
+    "total_documents": 100,
+    "sampled_documents": 100,
+    "llm_labeled_count": 100,
+    "classifier_labeled_count": 0,
+    "skipped_document_count": 0,
+    "classifier_metrics": null,
+    "duration_ms": 45000,
+    "started_at": "2024-01-15T10:30:00Z",
+    "completed_at": "2024-01-15T10:30:45Z",
+    "warnings": []
+  },
+  "config": {
+    "model": "anthropic/claude-sonnet-4-5-20250929",
+    "max_num_clusters": 5
+  }
+}
+```
+
+---
+
+## Error Responses
+
+Errors return an `ErrorResponse` object:
+
+```json
+{
+  "error": "ValidationError",
+  "message": "text_column is required for CSV data",
+  "details": {
+    "field": "text_column"
+  }
+}
+```
+
+| Status | Description |
+|--------|-------------|
+| 400 | Bad Request - Invalid input data |
+| 500 | Internal Server Error - Processing error |
+
+---
+
+## CORS Configuration
+
+The API enables CORS for all origins by default. For production, modify `api/main.py`:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://your-domain.com"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="JavaScript SDK" icon="js" href="/js-sdk-reference">
+    Use the TypeScript/JavaScript client
+  </Card>
+  <Card title="Python SDK" icon="python" href="/sdk-reference">
+    Direct Python SDK usage
+  </Card>
+</CardGroup>

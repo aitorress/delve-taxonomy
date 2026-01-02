@@ -27,9 +27,16 @@
         ]
       },
       {
+        "group": "API Reference",
+        "pages": [
+          "api-reference"
+        ]
+      },
+      {
         "group": "SDK Usage",
         "pages": [
-          "sdk-reference"
+          "sdk-reference",
+          "js-sdk-reference"
         ]
       },
       {

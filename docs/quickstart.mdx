@@ -135,16 +135,20 @@ Get up and running with Delve in just a few minutes. Choose your preferred inter
     - See more [examples](/examples)
   </Tab>
 
-  <Tab title="REST API">
+  <Tab title="TypeScript">
     ## Installation
 
     <CodeGroup>
-    ```bash pip
-    pip install delve-taxonomy
+    ```bash npm
+    npm install @delve/taxonomy
     ```
 
-    ```bash uv
-    uv add delve-taxonomy
+    ```bash yarn
+    yarn add @delve/taxonomy
+    ```
+
+    ```bash pnpm
+    pnpm add @delve/taxonomy
     ```
     </CodeGroup>
 
@@ -160,77 +164,58 @@ Get up and running with Delve in just a few minutes. Choose your preferred inter
       Get your API key from the [Anthropic Console](https://console.anthropic.com/)
     </Info>
 
-    ## Start the API Server
+    ## Basic Usage
 
-    ```bash
-    delve serve
-    ```
+    ```typescript
+    import { Delve } from '@delve/taxonomy';
 
-    The server starts at `http://localhost:8000` with:
-    - Interactive API docs at `/docs`
-    - OpenAPI schema at `/openapi.json`
-
-    ## Make Your First Request
-
-    Using JavaScript/TypeScript:
-
-    ```javascript
-    // Create a taxonomy generation job
-    const response = await fetch('http://localhost:8000/taxonomies', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        documents: [
-          { content: 'The app crashes on login' },
-          { content: 'Please add dark mode' },
-          { content: 'How do I export data?' },
-        ],
-        config: {
-          use_case: 'Categorize user feedback',
-          max_num_clusters: 5,
-        },
-      }),
+    // Create client
+    const delve = new Delve({
+      maxNumClusters: 5,
+      useCase: 'Categorize user feedback',
     });
 
-    const job = await response.json();
-    console.log('Job ID:', job.job_id);
-    ```
+    // Generate taxonomy
+    const result = await delve.run([
+      'The app crashes on login',
+      'Please add dark mode',
+      'How do I export data?',
+    ]);
 
-    Or using curl:
-
-    ```bash
-    curl -X POST http://localhost:8000/taxonomies \
-      -H "Content-Type: application/json" \
-      -d '{
-        "documents": [
-          {"content": "The app crashes on login"},
-          {"content": "Please add dark mode"}
-        ],
-        "config": {"use_case": "Categorize feedback"}
-      }'
-    ```
-
-    ## Poll for Results
-
-    ```javascript
-    // Poll until completion
-    const result = await fetch(`http://localhost:8000/taxonomies/${job.job_id}`);
-    const data = await result.json();
-
-    if (data.status === 'completed') {
-      console.log('Categories:', data.result.taxonomy);
+    // Access results
+    console.log(`Generated ${result.taxonomy.length} categories`);
+    for (const category of result.taxonomy) {
+      console.log(`- ${category.name}: ${category.description}`);
     }
     ```
 
     <Check>
-      The API supports real-time streaming via Server-Sent Events (SSE) for progress updates.
+      No server required! The TypeScript SDK runs directly in Node.js.
     </Check>
+
+    ## Access Results
+
+    ```typescript
+    // Access taxonomy
+    for (const category of result.taxonomy) {
+      console.log(`${category.name}: ${category.description}`);
+    }
+
+    // Access labeled documents
+    for (const doc of result.labeledDocuments) {
+      console.log(`${doc.id} → ${doc.category}`);
+    }
+
+    // Access metadata
+    console.log(`Processed ${result.metadata.numDocuments} documents`);
+    console.log(`Duration: ${result.metadata.runDurationSeconds}s`);
+    ```
 
     ## Next Steps
 
-    - Read the full [REST API Reference](/api-reference)
-    - See [TypeScript Integration](/typescript-integration) for type-safe clients
-    - Generate TypeScript types from the OpenAPI schema
+    - Explore [configuration options](/typescript-sdk#configuration)
+    - Try [predefined taxonomies](/typescript-sdk#with-predefined-taxonomy)
+    - See more [examples](/examples)
   </Tab>
 </Tabs>
 

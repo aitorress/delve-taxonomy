@@ -135,52 +135,61 @@ Get up and running with Delve in just a few minutes. Choose your preferred inter
     - See more [examples](/examples)
   </Tab>
 
-  <Tab title="TypeScript">
-    ## Installation
+  <Tab title="JavaScript/TypeScript">
+    ## Deploy the API
 
-    <CodeGroup>
-    ```bash npm
-    npm install @delve/taxonomy
-    ```
-
-    ```bash yarn
-    yarn add @delve/taxonomy
-    ```
-
-    ```bash pnpm
-    pnpm add @delve/taxonomy
-    ```
-    </CodeGroup>
-
-    ## Set API Key
-
-    Set your Anthropic API key as an environment variable:
+    First, deploy the Delve API (one-time setup):
 
     ```bash
-    export ANTHROPIC_API_KEY="your-api-key-here"
+    # Using Docker
+    docker run -p 8000:8000 \
+      -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+      -e OPENAI_API_KEY=$OPENAI_API_KEY \
+      ghcr.io/aitorress/delve-taxonomy
     ```
 
     <Info>
-      Get your API key from the [Anthropic Console](https://console.anthropic.com/)
+      See the [Deployment Guide](/deployment) for one-click deploy options (Railway, Render, Fly.io).
     </Info>
+
+    ## Install the Client
+
+    <CodeGroup>
+    ```bash npm
+    npm install @delve/client
+    ```
+
+    ```bash yarn
+    yarn add @delve/client
+    ```
+
+    ```bash pnpm
+    pnpm add @delve/client
+    ```
+    </CodeGroup>
 
     ## Basic Usage
 
     ```typescript
-    import { Delve } from '@delve/taxonomy';
+    import { Delve } from '@delve/client';
 
-    // Create client
+    // Connect to your deployed API
     const delve = new Delve({
-      maxNumClusters: 5,
-      useCase: 'Categorize user feedback',
+      apiUrl: 'https://your-delve-api.com'
     });
 
     // Generate taxonomy
-    const result = await delve.run([
-      'The app crashes on login',
-      'Please add dark mode',
-      'How do I export data?',
-    ]);
+    const result = await delve.generate({
+      documents: [
+        { content: 'The app crashes on login' },
+        { content: 'Please add dark mode' },
+        { content: 'How do I export data?' },
+      ],
+      config: {
+        max_num_clusters: 5,
+        use_case: 'Categorize user feedback',
+      },
+    });
 
     // Access results
     console.log(`Generated ${result.taxonomy.length} categories`);
@@ -190,7 +199,7 @@ Get up and running with Delve in just a few minutes. Choose your preferred inter
     ```
 
     <Check>
-      No server required! The TypeScript SDK runs directly in Node.js.
+      Full feature parity with the Python SDK, including the classifier for large datasets!
     </Check>
 
     ## Access Results
@@ -202,20 +211,20 @@ Get up and running with Delve in just a few minutes. Choose your preferred inter
     }
 
     // Access labeled documents
-    for (const doc of result.labeledDocuments) {
+    for (const doc of result.labeled_documents) {
       console.log(`${doc.id} → ${doc.category}`);
     }
 
     // Access metadata
-    console.log(`Processed ${result.metadata.numDocuments} documents`);
-    console.log(`Duration: ${result.metadata.runDurationSeconds}s`);
+    console.log(`Processed ${result.metadata.num_documents} documents`);
+    console.log(`Duration: ${result.metadata.run_duration_seconds}s`);
     ```
 
     ## Next Steps
 
-    - Explore [configuration options](/typescript-sdk#configuration)
-    - Try [predefined taxonomies](/typescript-sdk#with-predefined-taxonomy)
-    - See more [examples](/examples)
+    - Read the full [JavaScript Client docs](/js-client)
+    - See [Deployment options](/deployment)
+    - Browse [Examples](/examples)
   </Tab>
 </Tabs>
 

@@ -33,14 +33,10 @@
         ]
       },
       {
-        "group": "TypeScript SDK",
+        "group": "JavaScript/TypeScript",
         "pages": [
-          "typescript-sdk"
-        ]
-      },
-      {
-        "group": "REST API",
-        "pages": [
+          "js-client",
+          "deployment",
           "api-reference"
         ]
       },

@@ -1,0 +1,218 @@
+---
+title: 'Deployment'
+description: 'Deploy the Delve API for JavaScript/TypeScript integration'
+---
+
+Deploy the Delve API to enable JavaScript and TypeScript applications to use Delve's taxonomy generation capabilities.
+
+## Quick Deploy
+
+### One-Click Deploy
+
+<CardGroup cols={2}>
+  <Card title="Railway" icon="train" href="https://railway.app/template/delve-taxonomy">
+    Deploy to Railway with one click
+  </Card>
+  <Card title="Render" icon="server" href="https://render.com/deploy">
+    Deploy to Render with one click
+  </Card>
+</CardGroup>
+
+### Docker
+
+```bash
+# Clone the repository
+git clone https://github.com/aitorress/delve-taxonomy
+cd delve-taxonomy
+
+# Build and run
+docker build -t delve-api .
+docker run -p 8000:8000 \
+  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  -e OPENAI_API_KEY=$OPENAI_API_KEY \
+  delve-api
+```
+
+Or use docker-compose:
+
+```bash
+# Create .env file with your API keys
+echo "ANTHROPIC_API_KEY=your-key" > .env
+echo "OPENAI_API_KEY=your-key" >> .env
+
+# Start the service
+docker-compose up -d
+```
+
+### Manual Deployment
+
+```bash
+# Install Delve
+pip install delve-taxonomy
+
+# Start the server
+delve serve --host 0.0.0.0 --port 8000
+```
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for Claude |
+| `OPENAI_API_KEY` | When sample_size > 0 | OpenAI key for classifier embeddings |
+
+## Server Options
+
+```bash
+delve serve [OPTIONS]
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--host` | `127.0.0.1` | Host to bind to |
+| `--port` | `8000` | Port to bind to |
+| `--reload` | `false` | Auto-reload for development |
+| `--cors-origins` | `*` | Allowed CORS origins |
+
+**Examples:**
+
+```bash
+# Production
+delve serve --host 0.0.0.0 --port 80
+
+# Development with auto-reload
+delve serve --reload
+
+# Restrict CORS
+delve serve --cors-origins "https://myapp.com,https://api.myapp.com"
+```
+
+## API Endpoints
+
+Once deployed, your API provides:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/docs` | GET | Swagger UI documentation |
+| `/openapi.json` | GET | OpenAPI schema |
+| `/taxonomies` | POST | Create taxonomy job |
+| `/taxonomies/{id}` | GET | Get job status/result |
+| `/taxonomies/{id}/stream` | GET | SSE progress stream |
+| `/taxonomies` | GET | List all jobs |
+| `/taxonomies/{id}` | DELETE | Delete a job |
+
+## Using the JavaScript Client
+
+Once your API is deployed, install the client:
+
+```bash
+npm install @delve/client
+```
+
+```typescript
+import { Delve } from '@delve/client';
+
+const delve = new Delve({
+  apiUrl: 'https://your-deployed-api.com'
+});
+
+const result = await delve.generate({
+  documents: [
+    { content: 'Fix the login bug' },
+    { content: 'Add dark mode support' },
+  ],
+  config: {
+    max_num_clusters: 5,
+    use_case: 'Categorize issues',
+  },
+});
+
+console.log(result.taxonomy);
+```
+
+## Production Considerations
+
+### Security
+
+<Warning>
+  Always restrict CORS origins in production:
+  ```bash
+  delve serve --cors-origins "https://yourapp.com"
+  ```
+</Warning>
+
+### Scaling
+
+The API handles one job at a time per request. For high-volume workloads:
+
+1. Run multiple API instances behind a load balancer
+2. Use the async job endpoints (`POST /taxonomies` returns immediately)
+3. Poll or stream for results
+
+### Monitoring
+
+The `/health` endpoint returns:
+
+```json
+{
+  "status": "healthy",
+  "version": "0.1.10",
+  "timestamp": "2024-01-15T10:30:00Z"
+}
+```
+
+Use this for health checks in your orchestration platform.
+
+## Platform-Specific Guides
+
+<Accordion title="Railway">
+1. Click the "Deploy on Railway" button
+2. Add environment variables in the Railway dashboard:
+   - `ANTHROPIC_API_KEY`
+   - `OPENAI_API_KEY`
+3. Railway will automatically build and deploy
+4. Use the provided URL as your `apiUrl`
+</Accordion>
+
+<Accordion title="Render">
+1. Click "Deploy to Render"
+2. Add environment variables in Render dashboard
+3. Render will build from the Dockerfile
+4. Use your `.onrender.com` URL as `apiUrl`
+</Accordion>
+
+<Accordion title="Fly.io">
+```bash
+# Install flyctl
+curl -L https://fly.io/install.sh | sh
+
+# Launch app
+fly launch
+
+# Set secrets
+fly secrets set ANTHROPIC_API_KEY=your-key
+fly secrets set OPENAI_API_KEY=your-key
+
+# Deploy
+fly deploy
+```
+</Accordion>
+
+<Accordion title="AWS ECS / Fargate">
+1. Push Docker image to ECR
+2. Create ECS task definition with environment variables
+3. Create ECS service with load balancer
+4. Configure security groups for port 8000
+</Accordion>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="JavaScript Client" icon="js" href="/js-client">
+    Full JavaScript client documentation
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Complete REST API documentation
+  </Card>
+</CardGroup>

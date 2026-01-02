@@ -56,12 +56,68 @@ for doc in result.labeled_documents[:5]:
     print(f"  [{doc.category}] {doc.content[:50]}...")
 ```
 
+### JavaScript/TypeScript
+
+For JS/TS projects, deploy the API and use the client:
+
+```typescript
+import { Delve } from '@delve/client';
+
+const delve = new Delve({ apiUrl: 'https://your-delve-api.com' });
+
+const result = await delve.generate({
+  documents: [
+    { content: 'Fix the login bug' },
+    { content: 'Add dark mode support' },
+  ],
+  config: { max_num_clusters: 5 },
+});
+
+console.log(result.taxonomy);
+```
+
 ## Features
 
 - **Automated Taxonomy Generation** - No manual category creation using Claude 3.5 Sonnet
 - **Multiple Data Sources** - CSV, JSON/JSONL, LangSmith runs, pandas DataFrames
 - **Smart Categorization** - Iterative refinement with minibatch clustering
 - **Flexible Exports** - JSON, CSV, and Markdown reports
+- **REST API** - Deploy as a service for JavaScript/TypeScript integration
+
+## Deployment
+
+### One-Click Deploy
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/delve-taxonomy)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+### Docker
+
+```bash
+# Build and run
+docker build -t delve-api .
+docker run -p 8000:8000 \
+  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  -e OPENAI_API_KEY=$OPENAI_API_KEY \
+  delve-api
+
+# Or use docker-compose
+docker-compose up
+```
+
+### Manual
+
+```bash
+# Start the API server
+pip install delve-taxonomy
+delve serve --host 0.0.0.0 --port 8000
+```
+
+Once deployed, install the JavaScript client:
+
+```bash
+npm install @delve/client
+```
 
 ## Requirements
 

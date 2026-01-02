@@ -1,0 +1,316 @@
+---
+title: 'JavaScript Client'
+description: 'Type-safe JavaScript/TypeScript client for the Delve API'
+---
+
+The `@delve/client` package provides a clean, type-safe interface for using Delve from JavaScript and TypeScript applications.
+
+<Info>
+  This client requires a deployed Delve API. See the [Deployment Guide](/deployment) to set up your API server.
+</Info>
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @delve/client
+```
+
+```bash yarn
+yarn add @delve/client
+```
+
+```bash pnpm
+pnpm add @delve/client
+```
+</CodeGroup>
+
+## Quick Start
+
+```typescript
+import { Delve } from '@delve/client';
+
+// Connect to your Delve API
+const delve = new Delve({
+  apiUrl: 'https://your-delve-api.com'
+});
+
+// Generate taxonomy
+const result = await delve.generate({
+  documents: [
+    { content: 'The app crashes when I click submit' },
+    { content: 'Please add dark mode support' },
+    { content: 'How do I reset my password?' },
+  ],
+  config: {
+    max_num_clusters: 5,
+    use_case: 'Categorize customer feedback',
+  },
+});
+
+// Access results
+console.log('Categories:', result.taxonomy);
+console.log('Labeled docs:', result.labeled_documents);
+```
+
+## Configuration
+
+```typescript
+const delve = new Delve({
+  // Required: URL of your deployed Delve API
+  apiUrl: 'https://your-delve-api.com',
+
+  // Optional: Request timeout (default: 5 minutes)
+  timeout: 300000,
+});
+```
+
+## API Reference
+
+### `delve.generate(request, onProgress?)`
+
+Generate taxonomy and label documents. This method:
+1. Creates a job
+2. Waits for completion (polling or SSE)
+3. Returns the result
+
+```typescript
+const result = await delve.generate({
+  // Documents to categorize
+  documents: [
+    { id: 'ticket-1', content: 'Bug report content' },
+    { id: 'ticket-2', content: 'Feature request content' },
+  ],
+
+  // Configuration options
+  config: {
+    model: 'claude-sonnet-4-5-20250929',
+    fast_llm: 'claude-haiku-4-5-20251001',
+    sample_size: 100,
+    batch_size: 200,
+    max_num_clusters: 5,
+    use_case: 'Categorize support tickets',
+  },
+
+  // Optional: skip taxonomy discovery
+  predefinedTaxonomy: [
+    { id: '1', name: 'Bug', description: 'Bug reports and issues' },
+    { id: '2', name: 'Feature', description: 'Feature requests' },
+  ],
+});
+```
+
+**With Progress Callback:**
+
+```typescript
+const result = await delve.generate(
+  { documents: [...], config: {...} },
+  (progress) => {
+    console.log('Progress:', progress);
+    // "Loading data..."
+    // "Generating taxonomy..."
+    // "Labeling documents..."
+  }
+);
+```
+
+### `delve.createJob(request)`
+
+Create a job without waiting for completion. Useful for fire-and-forget patterns.
+
+```typescript
+const job = await delve.createJob({
+  documents: [...],
+  config: { max_num_clusters: 5 },
+});
+
+console.log('Job ID:', job.job_id);
+console.log('Status:', job.status); // 'pending'
+```
+
+### `delve.getJob(jobId)`
+
+Get current job status and result.
+
+```typescript
+const job = await delve.getJob('job-id');
+
+if (job.status === 'completed') {
+  console.log('Result:', job.result);
+} else if (job.status === 'failed') {
+  console.error('Error:', job.error);
+} else {
+  console.log('Progress:', job.progress);
+}
+```
+
+### `delve.waitForCompletion(jobId, pollInterval?)`
+
+Poll until job completes.
+
+```typescript
+const result = await delve.waitForCompletion('job-id', 2000); // Poll every 2s
+```
+
+### `delve.listJobs(options?)`
+
+List jobs with optional filtering.
+
+```typescript
+const { jobs, total } = await delve.listJobs({
+  status: 'completed',  // 'pending' | 'running' | 'completed' | 'failed'
+  limit: 10,
+  offset: 0,
+});
+```
+
+### `delve.deleteJob(jobId)`
+
+Delete a job and its results.
+
+```typescript
+await delve.deleteJob('job-id');
+```
+
+### `delve.healthCheck()`
+
+Check if the API is healthy.
+
+```typescript
+const isHealthy = await delve.healthCheck();
+if (!isHealthy) {
+  console.error('API is not responding');
+}
+```
+
+## Result Types
+
+```typescript
+interface TaxonomyResult {
+  taxonomy: TaxonomyCategory[];
+  labeled_documents: LabeledDocument[];
+  metadata: ResultMetadata;
+}
+
+interface TaxonomyCategory {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface LabeledDocument {
+  id: string;
+  content: string;
+  category: string | null;
+  summary: string | null;
+  explanation: string | null;
+}
+
+interface ResultMetadata {
+  num_documents: number;
+  num_categories: number;
+  run_duration_seconds: number;
+  category_counts: Record<string, number>;
+  llm_labeled_count: number;
+  classifier_labeled_count: number;
+  // ... more fields
+}
+```
+
+## React Example
+
+```tsx
+import { useState } from 'react';
+import { Delve, TaxonomyResult } from '@delve/client';
+
+const delve = new Delve({ apiUrl: process.env.DELVE_API_URL! });
+
+function TaxonomyGenerator() {
+  const [result, setResult] = useState<TaxonomyResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState('');
+
+  const generate = async (documents: string[]) => {
+    setLoading(true);
+    try {
+      const result = await delve.generate(
+        {
+          documents: documents.map(content => ({ content })),
+          config: { max_num_clusters: 5 },
+        },
+        setProgress
+      );
+      setResult(result);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      {loading && <p>Progress: {progress}</p>}
+      {result && (
+        <ul>
+          {result.taxonomy.map(cat => (
+            <li key={cat.id}>{cat.name}: {cat.description}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+```
+
+## Next.js Example
+
+```typescript
+// app/api/taxonomy/route.ts
+import { Delve } from '@delve/client';
+import { NextRequest, NextResponse } from 'next/server';
+
+const delve = new Delve({
+  apiUrl: process.env.DELVE_API_URL!
+});
+
+export async function POST(request: NextRequest) {
+  const { documents } = await request.json();
+
+  const result = await delve.generate({
+    documents,
+    config: { max_num_clusters: 5 },
+  });
+
+  return NextResponse.json(result);
+}
+```
+
+## Error Handling
+
+```typescript
+import { Delve } from '@delve/client';
+
+const delve = new Delve({ apiUrl: 'https://api.example.com' });
+
+try {
+  const result = await delve.generate({ documents: [...] });
+} catch (error) {
+  if (error.message.includes('timed out')) {
+    console.error('Job took too long');
+  } else if (error.message.includes('not found')) {
+    console.error('Job was deleted');
+  } else {
+    console.error('Failed:', error.message);
+  }
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Deployment" icon="rocket" href="/deployment">
+    Deploy your own Delve API
+  </Card>
+  <Card title="API Reference" icon="code" href="/api-reference">
+    Complete REST API documentation
+  </Card>
+</CardGroup>
